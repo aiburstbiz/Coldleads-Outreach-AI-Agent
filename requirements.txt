@@ -1,0 +1,39 @@
+# Core
+python-dotenv==1.0.1
+pydantic==2.9.2
+
+# Agent orchestration
+langgraph==0.2.39
+langchain-core==0.3.9
+
+# LLM (Gemini, replacing Ollama+Llama3 - no GPU available)
+google-generativeai==0.8.3
+
+# Search
+duckduckgo-search==6.3.0
+
+# Scraping
+playwright==1.47.0
+beautifulsoup4==4.12.3
+
+# Backend
+fastapi==0.115.0
+uvicorn==0.30.6
+
+# PPT generation (Dev2)
+python-pptx==1.0.2
+
+# Email (Dev2)
+google-api-python-client==2.146.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.1
+
+# DB (Dev2)
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.35
+
+# UI
+streamlit==1.39.0
+
+# Testing
+pytest==8.3.3
