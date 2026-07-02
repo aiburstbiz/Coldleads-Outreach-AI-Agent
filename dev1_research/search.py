@@ -240,9 +240,21 @@ def find_company_website(
             seen_domains.add(domain)
             unique_candidates.append(url)
 
-    # Score all candidates and pick the best
+    # Score all candidates and pick the best.
+    # Tie-break: prefer a bare root domain (e.g. "kfintech.com") over a
+    # subdomain (e.g. "mfs.kfintech.com"), and a shorter/root path over a
+    # deep one — subdomains are often investor portals, login pages, or
+    # other sub-products, not the main company site.
+    def _sort_key(item):
+        url, score = item
+        domain = _extract_domain(url)
+        subdomain_depth = domain.count(".") - 1  # kfintech.com -> 0, mfs.kfintech.com -> 1
+        path = urlparse(url).path
+        path_len = 0 if path in ("", "/") else len(path)
+        return (-score, subdomain_depth, path_len)
+
     scored = [(url, _score_url(url, company_name)) for url in unique_candidates]
-    scored.sort(key=lambda x: x[1], reverse=True)
+    scored.sort(key=_sort_key)
 
     logger.info(f"Top 3 candidates for '{company_name}':")
     for url, score in scored[:3]:
