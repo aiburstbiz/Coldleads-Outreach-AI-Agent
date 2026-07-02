@@ -174,7 +174,7 @@ def run_pipeline(company_name: str, use_stub: bool = True) -> Optional[dict]:
     try:
         website_url = find_company_website(company_name)
         if not website_url:
-            logger.error("[SEARCH] No website found for '%s' — skipping.", company_name)
+            logger.error("[SEARCH] No website found for '%s' - skipping.", company_name)
             return None
         logger.info("[SEARCH] %s -> %s", company_name, website_url)
     except Exception as e:

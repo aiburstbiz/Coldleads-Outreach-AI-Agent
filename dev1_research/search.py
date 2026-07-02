@@ -268,7 +268,7 @@ def find_company_website(
     if best_score < min_confidence:
         logger.warning(
             f"Low confidence result (score={best_score} < {min_confidence}) for "
-            f"'{company_name}': {best_url} — treating as NOT FOUND."
+            f"'{company_name}': {best_url} - treating as NOT FOUND."
         )
         return None
 
