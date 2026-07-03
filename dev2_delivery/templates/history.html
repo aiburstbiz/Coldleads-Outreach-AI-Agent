@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Outreach History</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0f0f1a; color: #e0e0e0; padding: 40px; }
+    h1 { color: #7c3aed; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 10px; background: #1e1e2e; color: #7c3aed; font-size: 13px; text-transform: uppercase; }
+    td { padding: 12px 10px; border-bottom: 1px solid #2a2a3e; font-size: 14px; }
+    tr:hover td { background: #1e1e2e; }
+    a { color: #7c3aed; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+    .status.pending  { background: #3a3a00; color: #ffd700; }
+    .status.approved { background: #003a00; color: #00ff88; }
+    .status.rejected { background: #3a0000; color: #ff4444; }
+    .status.sent     { background: #003a3a; color: #00cfff; }
+    .empty { color: #555; font-size: 14px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Outreach History</h1>
+  {% if jobs %}
+  <table>
+    <tr>
+      <th>Company</th>
+      <th>Status</th>
+      <th>Job ID</th>
+      <th>Action</th>
+    </tr>
+    {% for job in jobs %}
+    <tr>
+      <td>{{ job.company_name }}</td>
+      <td><span class="status {{ job.status }}">{{ job.status }}</span></td>
+      <td style="color:#555; font-size:12px;">{{ job.job_id }}</td>
+      <td><a href="/review/{{ job.job_id }}">Review</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="empty">No jobs yet. Send a company name to /generate to get started.</p>
+  {% endif %}
+</body>
+</html>
