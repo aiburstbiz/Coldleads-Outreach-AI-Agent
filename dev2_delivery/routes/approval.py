@@ -1,11 +1,12 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from shared.schema import CompanyResearch
+from dev2_delivery.gmail_sender import send_email
 from dev2_delivery.ppt_generator import generate_pptx
 from dev2_delivery.email_generator import generate_email
 from dev2_delivery.services.job_store import (
@@ -67,11 +68,24 @@ async def approve(
     job["email_draft"]["subject"] = subject
     job["email_draft"]["body"] = body
 
-    update_status(job_id, "approved", approved_at=datetime.utcnow().isoformat())
+    
 
-    # Gmail send will be wired in here on Day 5
-    # For now just mark approved and show confirmation
-    flash = {"type": "success", "message": "Approved! Email will be sent shortly."}
+    # Send the email
+    pptx_path = job.get("pptx_path")
+    update_status(job_id, "approved", approved_at=datetime.now(timezone.utc).isoformat())
+    result = send_email(
+        to=recipient_email,
+        subject=subject,
+        body_html=body,
+        attachment_path=pptx_path,
+    )
+
+    if result["success"]:
+        update_status(job_id, "sent")
+        flash = {"type": "success", "message": f"Email sent successfully! Message ID: {result['message_id']}"}
+    else:
+        update_status(job_id, "failed")
+        flash = {"type": "error", "message": f"Send failed: {result['error']}"}
     return templates.TemplateResponse(request,
         "approval.html",
         {"job": get_job(job_id), "flash": flash}

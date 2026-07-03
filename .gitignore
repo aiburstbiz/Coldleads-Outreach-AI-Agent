@@ -28,3 +28,4 @@ Thumbs.db
 # Database
 *.db
 *.sqlite3dev2_delivery/outputs/
+dev2_delivery/credentials/
