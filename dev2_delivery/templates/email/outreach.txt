@@ -1,0 +1,24 @@
+Hi {{ contact_name }},
+
+I came across {{ company_name }} and was impressed by what you're building in the {{ industry }} space{% if founded %} since {{ founded }}{% endif %}.
+
+{% if pain_points %}
+Based on our research, companies like yours often face challenges such as:
+{% for point in pain_points %}
+- {{ point }}
+{% endfor %}
+{% endif %}
+
+{% if recommended_services %}
+We specialize in AI-driven solutions that directly address these — specifically:
+{% for svc in recommended_services %}
+- {{ svc.service }}: {{ svc.reason }}
+{% endfor %}
+{% endif %}
+
+Would you be open to a 20-minute call to explore whether there's a fit?
+
+Best regards,
+{{ sender_name }}
+{{ sender_title }}
+AIBurst

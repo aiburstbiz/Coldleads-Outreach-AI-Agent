@@ -86,7 +86,7 @@ class CompanyResearch(BaseModel):
                 "products": ["Widget Pro", "Widget Lite"],
                 "services": ["Custom manufacturing", "Logistics"],
                 "contact": {
-                    "email": "[email protected]",
+                    "email": "info@acme.com",
                     "phone": "+1-555-0100",
                     "address": "123 Main St, Springfield",
                     "social_links": ["https://linkedin.com/company/acme"],

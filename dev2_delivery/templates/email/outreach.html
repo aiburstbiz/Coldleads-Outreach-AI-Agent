@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; color: #222; max-width: 600px; margin: auto;">
+
+  <p>Hi {{ contact_name }},</p>
+
+  <p>
+    I came across {{ company_name }} and was impressed by what you're building in 
+    the {{ industry }} space{% if founded %} since {{ founded }}{% endif %}.
+  </p>
+
+  {% if pain_points %}
+  <p>
+    Based on our research, companies like yours often face challenges such as:
+    <ul>
+      {% for point in pain_points %}
+      <li>{{ point }}</li>
+      {% endfor %}
+    </ul>
+  </p>
+  {% endif %}
+
+  {% if recommended_services %}
+  <p>
+    We specialize in AI-driven solutions that directly address these — specifically:
+    <ul>
+      {% for svc in recommended_services %}
+      <li>
+        <strong>{{ svc.service }}</strong> — {{ svc.reason }}
+      </li>
+      {% endfor %}
+    </ul>
+  </p>
+  {% endif %}
+
+  <p>
+    Would you be open to a 20-minute call to explore whether there's a fit? 
+    I'd love to learn more about {{ company_name }}'s roadmap and share how 
+    we've helped similar companies.
+  </p>
+
+  <p>Best regards,<br>
+  <strong>{{ sender_name }}</strong><br>
+  {{ sender_title }}<br>
+  AIBurst</p>
+
+</body>
+</html>
