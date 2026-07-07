@@ -1,18 +1,14 @@
 """
 Shared JSON contract between Dev1 (research) and Dev2 (delivery).
-
 Dev1's pipeline (search -> scraper -> analyzer -> knowledge_base -> recommender)
 must produce a single CompanyResearch object.
-
 Dev2's pipeline (ppt_generator, email_generator) consumes CompanyResearch only.
 Treat this file as the single source of truth for the data shape - if a field
 needs to change, update it here first and tell the other developer.
 """
-
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -55,21 +51,45 @@ class RecommendedService(BaseModel):
     priority: Priority
 
 
+# ── NEW: additions for PPT-ready depth (safe, additive only) ─────────────
+
+class SnapshotStat(BaseModel):
+    """One 'at a glance' stat callout, e.g. for a company-snapshot slide."""
+    label: str      # short bold stat, e.g. "19+ Years" or "200,000+"
+    caption: str    # short caption explaining it, e.g. "Satisfied customers across retail & logistics"
+
+
+class SpotlightStage(BaseModel):
+    """One stage in a flagship use-case pipeline, e.g. Ingest -> Predict -> Alert -> Report."""
+    stage: str          # short stage name, e.g. "Ingest"
+    description: str    # 1 sentence describing this stage for this specific company
+
+
+class SpotlightUseCase(BaseModel):
+    """A single flagship AI use case expanded into an operational pipeline, for a deep-dive slide."""
+    title: str
+    stages: List[SpotlightStage] = Field(default_factory=list)
+    estimated_outcomes: List[str] = Field(default_factory=list)
+
+
 class CompanyResearch(BaseModel):
     """The single object Dev1 produces and Dev2 consumes."""
-
     company_name: str
     website_url: str
     scraped_at: datetime
-
     about: About
     products: List[str] = Field(default_factory=list)
     services: List[str] = Field(default_factory=list)
     contact: Contact
     news: List[NewsItem] = Field(default_factory=list)
-
     llm_analysis: LLMAnalysis
     recommended_services: List[RecommendedService] = Field(default_factory=list)
+
+    # NEW — optional, additive fields. Existing code that builds/reads a
+    # CompanyResearch without these keeps working unchanged since they
+    # default to empty/None.
+    company_snapshot: List[SnapshotStat] = Field(default_factory=list)
+    spotlight_use_case: Optional[SpotlightUseCase] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -99,7 +119,10 @@ class CompanyResearch(BaseModel):
                     }
                 ],
                 "llm_analysis": {
-                    "pain_points": ["Manual inventory tracking", "Slow order processing"],
+                    "pain_points": [
+                        "Manual inventory tracking across multiple warehouses slows down fulfillment and increases error rates.",
+                        "Slow order processing due to disconnected systems between sales and logistics teams.",
+                    ],
                     "growth_signals": ["New facility opening", "Hiring engineers"],
                     "tech_stack_hints": ["SAP", "Excel-based reporting"],
                     "summary": "Acme is scaling production and shows signs of operational strain.",
@@ -107,10 +130,28 @@ class CompanyResearch(BaseModel):
                 "recommended_services": [
                     {
                         "service": "AI-driven inventory automation",
-                        "reason": "Manual tracking flagged as a pain point",
+                        "reason": "Automates stock tracking across all warehouses in real time, replacing manual spreadsheet updates and reducing fulfillment delays caused by inventory blind spots.",
                         "priority": "high",
                     }
                 ],
+                "company_snapshot": [
+                    {"label": "26+ Years", "caption": "Manufacturing widgets for enterprise clients"},
+                    {"label": "500+ Clients", "caption": "Across North America and Europe"},
+                ],
+                "spotlight_use_case": {
+                    "title": "AI-Powered Inventory & Demand Intelligence",
+                    "stages": [
+                        {"stage": "Ingest", "description": "Pull sales history from ERP and warehouse systems."},
+                        {"stage": "Predict", "description": "ML model forecasts demand by SKU, region, and season."},
+                        {"stage": "Alert", "description": "Recommend replenishment actions based on forecasts and thresholds."},
+                        {"stage": "Report", "description": "Dashboard shows fulfillment performance and slow-moving stock."},
+                    ],
+                    "estimated_outcomes": [
+                        "Lower stockout risk",
+                        "Better demand planning",
+                        "More efficient replenishment decisions",
+                    ],
+                },
             }
         }
     )
