@@ -10,7 +10,7 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:password@localhost:5432/sales_agent",
 )
 
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(DATABASE_URL, echo=False, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

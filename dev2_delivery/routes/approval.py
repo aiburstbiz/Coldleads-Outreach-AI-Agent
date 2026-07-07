@@ -118,7 +118,7 @@ async def download(job_id: str, db: Session = Depends(get_db)):
     return FileResponse(
         job.pptx_path,
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        filename=f"{job.company_name.replace(' ', '_')}.pptx",
+        filename=f"{job.company_data.company_name.replace(' ', '_')}.pptx",
     )
 
 
