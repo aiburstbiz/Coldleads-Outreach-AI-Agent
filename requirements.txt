@@ -3,7 +3,7 @@ python-dotenv==1.0.1
 pydantic==2.9.2
 
 # ── Agent orchestration ───────────────────────────────────
-langgraph==0.2.39
+langgraph>=1.0.0
 langchain-core==0.3.9
 
 # ── LLM ──────────────────────────────────────────────────
@@ -59,8 +59,6 @@ idna==3.18
 Jinja2==3.1.6
 jsonpatch==1.33
 jsonpointer==3.1.1
-langgraph-checkpoint==2.1.2
-langgraph-sdk==0.1.74
 langsmith==0.1.147
 lxml==6.1.1
 markdown-it-py==4.2.0
