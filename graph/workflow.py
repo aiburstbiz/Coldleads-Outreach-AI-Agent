@@ -50,7 +50,7 @@ from graph.state import PipelineState
 from graph.dev2_nodes import ppt_node, email_node, approval_node, send_node
 
 # Dev1 nodes — imported from dev1_research/graph_nodes.py
-from graph_nodes import (
+from dev1_research.graph_nodes import (
     search_node,
     evaluate_search_node,
     route_after_search,
