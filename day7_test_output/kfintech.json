@@ -1,0 +1,50 @@
+{
+  "company_name": "KFintech",
+  "website_url": "https://www.kfintech.com/",
+  "scraped_at": "2026-07-02T10:26:07.202350+00:00",
+  "about": {
+    "summary": "=== HOME PAGE (https://www.kfintech.com/) ===\nKFin Technologies Limited | KFintech\nOpen Demat Account\nTo Open DEMAT ACCOUNT in less than 5mins\nClick Here\nYour browser does not support HTML5 video.\nTrust\nLeadership is an achievement of Trust.\nFor us, it's in our culture.\nKFintech ",
+    "industry": "Finance / Fintech",
+    "founded": null,
+    "size": null
+  },
+  "products": [],
+  "services": [],
+  "contact": {
+    "email": "investorsupport.mfs@kfintech.com",
+    "phone": "18003094034",
+    "address": null,
+    "social_links": []
+  },
+  "news": [],
+  "llm_analysis": {
+    "pain_points": [
+      "Manual certificate/audit and quality-control review processes",
+      "Manual, unscaled sales outreach and lead research"
+    ],
+    "growth_signals": [
+      "Actively expanding operations/capacity",
+      "Recent funding or public listing activity",
+      "Recent product launch or M&A activity"
+    ],
+    "tech_stack_hints": [],
+    "summary": "[STUB] Heuristic analysis for KFintech. Industry guessed as 'Finance / Fintech' from scraped text. Replace with real Gemini output once billing is active."
+  },
+  "recommended_services": [
+    {
+      "service": "Intelligent Document Processing",
+      "reason": "Directly addresses slow certificate/audit processing and manual document review.",
+      "priority": "high"
+    },
+    {
+      "service": "AI Sales Outreach Agent",
+      "reason": "Directly addresses manual lead research and slow outreach.",
+      "priority": "high"
+    },
+    {
+      "service": "AI Workflow Automation",
+      "reason": "Directly addresses operations-heavy enterprises and slow internal processes.",
+      "priority": "medium"
+    }
+  ]
+}

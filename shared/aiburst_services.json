@@ -1,0 +1,70 @@
+{
+  "company": "AIBurst",
+  "tagline": "Strategic AI for Enterprise Growth",
+  "services": [
+    {
+      "id": "svc_001",
+      "name": "AI Workflow Automation",
+      "description": "Automates repetitive, multi-step business processes using AI agents that observe, reason, and act across existing tools.",
+      "best_for": ["Manufacturing", "Operations-heavy enterprises", "Back-office teams"],
+      "pain_points_addressed": ["Manual repetitive tasks", "Slow internal processes", "High operational overhead"],
+      "keywords": ["automation", "workflow", "process", "efficiency", "operations"]
+    },
+    {
+      "id": "svc_002",
+      "name": "Conversational AI & Chatbots",
+      "description": "Custom AI chatbots and virtual assistants for customer support, internal helpdesks, and lead qualification.",
+      "best_for": ["Customer service teams", "E-commerce", "B2C companies"],
+      "pain_points_addressed": ["High support ticket volume", "Slow response times", "Repetitive customer queries"],
+      "keywords": ["chatbot", "support", "customer service", "conversational", "helpdesk"]
+    },
+    {
+      "id": "svc_003",
+      "name": "AI Sales Outreach Agent",
+      "description": "AI agent that researches prospects, personalizes outreach, and manages cold email/lead generation end-to-end.",
+      "best_for": ["B2B SaaS", "Sales teams", "Agencies"],
+      "pain_points_addressed": ["Manual lead research", "Slow outreach", "Low personalization at scale"],
+      "keywords": ["sales", "leads", "outreach", "prospecting", "CRM", "cold email"]
+    },
+    {
+      "id": "svc_004",
+      "name": "Custom AI Model Development",
+      "description": "Builds and fine-tunes bespoke AI/ML models tailored to a company's specific data and use case.",
+      "best_for": ["Enterprises with proprietary data", "Regulated industries", "Product companies"],
+      "pain_points_addressed": ["Generic off-the-shelf tools don't fit", "Need for domain-specific accuracy"],
+      "keywords": ["custom model", "machine learning", "fine-tuning", "proprietary AI"]
+    },
+    {
+      "id": "svc_005",
+      "name": "AI-Powered CRM & ERP Integration",
+      "description": "Embeds AI directly into existing CRM/ERP systems for smarter data entry, forecasting, and recommendations.",
+      "best_for": ["Enterprises with legacy CRM/ERP", "Sales and finance ops teams"],
+      "pain_points_addressed": ["Disconnected systems", "Manual data entry", "Poor forecasting accuracy"],
+      "keywords": ["CRM", "ERP", "integration", "data sync", "forecasting"]
+    },
+    {
+      "id": "svc_006",
+      "name": "Data Analytics & AI Insights",
+      "description": "Turns raw business data into actionable insights and dashboards using AI-driven analysis.",
+      "best_for": ["Data-heavy businesses", "Leadership/strategy teams"],
+      "pain_points_addressed": ["Data silos", "Lack of actionable insight", "Slow reporting cycles"],
+      "keywords": ["analytics", "insights", "dashboard", "reporting", "data"]
+    },
+    {
+      "id": "svc_007",
+      "name": "Intelligent Document Processing",
+      "description": "Extracts, classifies, and validates data from documents (invoices, certificates, contracts) using AI/OCR.",
+      "best_for": ["Manufacturing", "Finance", "Compliance-heavy industries", "Quality control teams"],
+      "pain_points_addressed": ["Manual document review", "Slow certificate/audit processing", "Data entry errors"],
+      "keywords": ["documents", "OCR", "extraction", "compliance", "certificates", "audit", "quality control"]
+    },
+    {
+      "id": "svc_008",
+      "name": "AI Consulting & Strategy",
+      "description": "Advisory engagement to help enterprises identify high-impact AI use cases and build an adoption roadmap.",
+      "best_for": ["Enterprises early in AI adoption", "Leadership teams"],
+      "pain_points_addressed": ["Unclear AI strategy", "Uncertainty on where to start with AI"],
+      "keywords": ["strategy", "consulting", "roadmap", "AI adoption", "advisory"]
+    }
+  ]
+}

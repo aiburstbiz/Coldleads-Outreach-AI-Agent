@@ -1,0 +1,87 @@
+{
+  "company_name": "dxfactor",
+  "website_url": "https://dxfactor.com/about-us/",
+  "scraped_at": "2026-07-07 04:13:24.200554+00:00",
+  "about": {
+    "summary": "DXFactor drives digital transformation with outcome-driven technologies and data solutions, serving enterprises, with 22,174 LinkedIn followers.",
+    "industry": "Technology",
+    "founded": null,
+    "size": null
+  },
+  "products": [],
+  "services": [
+    "Digital Transformation",
+    "Martech Consulting",
+    "AI-first Digital Transformation"
+  ],
+  "contact": {
+    "email": null,
+    "phone": null,
+    "address": null,
+    "social_links": [
+      "https://www.linkedin.com/company/dxfactor"
+    ]
+  },
+  "news": [
+    {
+      "title": "ABC Fitness, DXFactor Partner Around Generative AI",
+      "date": null,
+      "summary": "DXFactor partners with ABC Fitness for generative AI expertise"
+    },
+    {
+      "title": "DXFactor founder explains why Digital transformation is a radical rethinking",
+      "date": null,
+      "summary": "DXFactor founder discusses digital transformation goals"
+    },
+    {
+      "title": "AdGlobal360 launches dXfactor, a new Martech consulting practice",
+      "date": null,
+      "summary": "AdGlobal360 launches DXFactor for AI-first digital transformation"
+    },
+    {
+      "title": "DXFactor Archives - Athletech News",
+      "date": null,
+      "summary": "DXFactor featured in Athletech News for emerging fitness technology"
+    },
+    {
+      "title": "DXFactor - Media Infoline",
+      "date": null,
+      "summary": "DXFactor covered in Media Infoline for Martech consulting practice"
+    }
+  ],
+  "llm_analysis": {
+    "pain_points": [
+      "Digital transformation challenges",
+      "AI adoption hurdles",
+      "Data solution integration"
+    ],
+    "growth_signals": [
+      "Partnership with ABC Fitness",
+      "Launch of Martech consulting practice",
+      "Growing LinkedIn presence"
+    ],
+    "tech_stack_hints": [
+      "Generative AI",
+      "Martech",
+      "Data solutions"
+    ],
+    "summary": "DXFactor drives digital transformation with AI-first approach, serving enterprises, and growing through partnerships and new practice launches, with a focus on outcome-driven technologies and data solutions."
+  },
+  "recommended_services": [
+    {
+      "service": "AI Consulting & Strategy",
+      "reason": "Directly addresses uncertainty on where to start with AI and enterprises early in AI adoption.",
+      "priority": "high"
+    },
+    {
+      "service": "AI-Powered CRM & ERP Integration",
+      "reason": "Directly addresses enterprises with legacy CRM/ERP and sales and finance ops teams.",
+      "priority": "high"
+    },
+    {
+      "service": "Data Analytics & AI Insights",
+      "reason": "Directly addresses lack of actionable insight and data-heavy businesses.",
+      "priority": "medium"
+    }
+  ]
+}
