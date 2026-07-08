@@ -1,0 +1,46 @@
+{
+  "company_name": "Parasakthi Cement",
+  "website_url": "https://srmprcements.com/",
+  "scraped_at": "2026-07-02T10:17:27.049300+00:00",
+  "about": {
+    "summary": "=== HOME PAGE (https://srmprcements.com/) ===\nSRMPR Cements : Buy Cement Online at Best Prices in India\n<\n/script>\n89% L o a d i n g . . .\nSkip to content\nMenu\nFacebook\nInstagram\nTwitter\nLinkedin\nYoutube\nMenu\nFacebook\nInstagram\nTwitter\nLinkedin\nYoutube\nJOIN US IN RESHAPING THE CO",
+    "industry": "Manufacturing",
+    "founded": null,
+    "size": null
+  },
+  "products": [],
+  "services": [],
+  "contact": {
+    "email": "info@srmprcements.com",
+    "phone": "+91 98848 00341",
+    "address": null,
+    "social_links": []
+  },
+  "news": [],
+  "llm_analysis": {
+    "pain_points": [
+      "Manual, unscaled sales outreach and lead research",
+      "High-volume, repetitive customer support queries"
+    ],
+    "growth_signals": [],
+    "tech_stack_hints": [],
+    "summary": "[STUB] Heuristic analysis for Parasakthi Cement. Industry guessed as 'Manufacturing' from scraped text. Replace with real Gemini output once billing is active."
+  },
+  "recommended_services": [
+    {
+      "service": "AI Sales Outreach Agent",
+      "reason": "Directly addresses low personalization at scale and manual lead research.",
+      "priority": "high"
+    },
+    {
+      "service": "Conversational AI & Chatbots",
+      "reason": "Directly addresses repetitive customer queries and high support ticket volume.",
+      "priority": "high"
+    },
+    {
+      "service": "AI Workflow Automation",
+      "reason": "Directly addresses high operational overhead and manual repetitive tasks.",
+      "priority": "medium"
+    }
+  ]
+}

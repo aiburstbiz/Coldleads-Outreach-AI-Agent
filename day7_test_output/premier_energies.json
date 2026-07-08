@@ -1,0 +1,49 @@
+{
+  "company_name": "Premier Energies",
+  "website_url": "https://premierenergies.com/investor-relations",
+  "scraped_at": "2026-07-02T10:26:26.085337+00:00",
+  "about": {
+    "summary": "=== HOME PAGE (https://premierenergies.com/investor-relations) ===\nInvestor Relations - Premier Energies Home Investor Relations Investor Relations IPO Documents Disclosure under Regulation 46 Shareholder Information News and Announcements\n\n=== ABOUT PAGE (https://premierenergies",
+    "industry": "Manufacturing",
+    "founded": null,
+    "size": null
+  },
+  "products": [],
+  "services": [],
+  "contact": {
+    "email": "hello@premierenergies.com",
+    "phone": "+91-40-2774 4415",
+    "address": null,
+    "social_links": []
+  },
+  "news": [],
+  "llm_analysis": {
+    "pain_points": [
+      "Manual, unscaled sales outreach and lead research"
+    ],
+    "growth_signals": [
+      "Actively expanding operations/capacity",
+      "Recent funding or public listing activity",
+      "Recent product launch or M&A activity"
+    ],
+    "tech_stack_hints": [],
+    "summary": "[STUB] Heuristic analysis for Premier Energies. Industry guessed as 'Manufacturing' from scraped text. Replace with real Gemini output once billing is active."
+  },
+  "recommended_services": [
+    {
+      "service": "AI Sales Outreach Agent",
+      "reason": "Directly addresses manual lead research and slow outreach.",
+      "priority": "high"
+    },
+    {
+      "service": "AI Workflow Automation",
+      "reason": "Directly addresses operations-heavy enterprises and manual repetitive tasks.",
+      "priority": "medium"
+    },
+    {
+      "service": "Intelligent Document Processing",
+      "reason": "Directly addresses manual document review.",
+      "priority": "medium"
+    }
+  ]
+}

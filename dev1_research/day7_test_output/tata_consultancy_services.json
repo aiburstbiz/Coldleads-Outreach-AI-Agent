@@ -1,0 +1,85 @@
+{
+  "company_name": "Tata Consultancy Services",
+  "website_url": "https://www.consultancy.in/news/3870/tata-consultancy-services-hits-milestone-600000-employees-globally",
+  "scraped_at": "2026-07-06 16:47:33.604306+00:00",
+  "about": {
+    "summary": "Tata Consultancy Services is a global IT services firm with 600,000 employees.",
+    "industry": "IT services",
+    "founded": "1968",
+    "size": "600,000 employees"
+  },
+  "products": [],
+  "services": [
+    "IT outsourcing",
+    "managed services",
+    "consulting"
+  ],
+  "contact": {
+    "email": null,
+    "phone": null,
+    "address": "India",
+    "social_links": []
+  },
+  "news": [
+    {
+      "title": "Tata Consultancy Services hits milestone: 600,000 employees globally",
+      "date": "15 July 2022",
+      "summary": "TCS reaches 600,000 employees globally"
+    },
+    {
+      "title": "Wipro appoints Laura Marie Miller to its Board of Directors",
+      "date": "11 March 2026",
+      "summary": "Wipro appoints new board member"
+    },
+    {
+      "title": "TH Global Capital serves as financial advisor to Ignitarium on sale to Neurealm",
+      "date": null,
+      "summary": "TH Global Capital advises on sale"
+    },
+    {
+      "title": "TCS aims to continue growth trajectory",
+      "date": null,
+      "summary": "TCS plans to add 40,000 staff"
+    },
+    {
+      "title": "TCS has a presence in 50+ markets worldwide",
+      "date": null,
+      "summary": "TCS expands global presence"
+    }
+  ],
+  "llm_analysis": {
+    "pain_points": [
+      "talent acquisition",
+      "high churn rate",
+      "digital transformation"
+    ],
+    "growth_signals": [
+      "expanding globally",
+      "increasing revenue",
+      "adding staff"
+    ],
+    "tech_stack_hints": [
+      "IT outsourcing",
+      "digital transformation",
+      "cloud services"
+    ],
+    "summary": "TCS is a global IT services firm expanding its services and staff, with a focus on digital transformation and IT outsourcing."
+  },
+  "recommended_services": [
+    {
+      "service": "AI Consulting & Strategy",
+      "reason": "Directly addresses uncertainty on where to start with AI.",
+      "priority": "high"
+    },
+    {
+      "service": "AI Workflow Automation",
+      "reason": "Directly addresses high operational overhead.",
+      "priority": "low"
+    },
+    {
+      "service": "Conversational AI & Chatbots",
+      "reason": "Directly addresses high support ticket volume.",
+      "priority": "low"
+    }
+  ]
+}
