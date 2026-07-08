@@ -7,9 +7,9 @@ checks whether that step's output is good enough to continue, and can
 route back to retry the same step (up to a max) instead of blindly
 accepting weak results or failing outright.
 
-This replaces the old fixed "always run 3x" approach (run_best_of) with
-something smarter: only retry when the evaluator actually flags a
-problem, and stop retrying once max attempts is hit either way.
+v2: evaluate_analyze_node now also checks for missing contact info and
+news items, not just pain points/industry/summary/snapshot — these were
+silently passing through empty in v1 since nothing flagged them.
 
 Flow:
     search -> evaluate_search -> [retry search | continue | fail]
@@ -218,6 +218,10 @@ def evaluate_analyze_node(state: ResearchState) -> ResearchState:
     Checks a handful of concrete signals rather than just "did it not
     crash" - this is the evaluator most worth having, since a technically
     successful call can still return a thin, generic result.
+
+    v2: also flags missing contact info (email/phone/address all null)
+    and missing news items — these previously slipped through as
+    "analyze_ok" even when genuinely empty, since nothing checked them.
     """
     notes = state.setdefault("quality_notes", [])
 
@@ -229,6 +233,7 @@ def evaluate_analyze_node(state: ResearchState) -> ResearchState:
     cr = state.get("company_research") or {}
     about = cr.get("about", {})
     llm = cr.get("llm_analysis", {})
+    contact = cr.get("contact", {})
 
     issues = []
     if not llm.get("pain_points"):
@@ -239,12 +244,16 @@ def evaluate_analyze_node(state: ResearchState) -> ResearchState:
         issues.append("summary too short")
     if not cr.get("company_snapshot"):
         issues.append("no company snapshot stats")
+    if not any([contact.get("email"), contact.get("phone"), contact.get("address")]):
+        issues.append("no contact info found (email/phone/address all missing)")
+    if not cr.get("news"):
+        issues.append("no news items found")
 
     if issues:
         notes.append(f"analysis quality issues: {', '.join(issues)}")
         state["current_step"] = "analyze_thin"
     else:
-        notes.append("analysis OK: rich result with pain points, industry, snapshot")
+        notes.append("analysis OK: rich result with pain points, industry, snapshot, contact, news")
         state["current_step"] = "analyze_ok"
 
     return state
