@@ -1,0 +1,135 @@
+{
+  "company_name": "dxfactor",
+  "website_url": "https://dxfactor.com/about-us/",
+  "scraped_at": "2026-07-08 05:04:50.625869+00:00",
+  "about": {
+    "summary": "DXFactor is an AI Engineering firm that provides digital transformation services to the fitness and wellness industry, serving clients such as ABC Fitness and EGYM, with a focus on AI-powered solutions and personalized user experiences. The company was founded in 2018 and is headquartered in McLean, Virginia. DXFactor has 150 total employees and operates in the IT Services and IT Consulting industry.",
+    "industry": "IT Services and IT Consulting",
+    "founded": "2018",
+    "size": "51-200 employees"
+  },
+  "products": [],
+  "services": [
+    "Digital Transformation Services",
+    "AI-Powered Solutions",
+    "Personalized User Experiences",
+    "Data Warehousing",
+    "Custom Software Integrations"
+  ],
+  "contact": {
+    "email": null,
+    "phone": null,
+    "address": "1765 Greensboro Station Place Suite 900 Mclean, Virginia United States",
+    "social_links": [
+      "https://in.linkedin.com/company/dxfactor",
+      "https://www.linkedin.com/company/dxfactor"
+    ]
+  },
+  "news": [
+    {
+      "title": "DXFactor and ABC Fitness Partner Around Generative AI",
+      "date": null,
+      "summary": "DXFactor has partnered with ABC Fitness to provide digital transformation services, leveraging generative AI to enhance the fitness industry. The partnership aims to revolutionize member experiences and accelerate digital transformation within the fitness industry."
+    },
+    {
+      "title": "DXFactor and EGYM Partner to Innovate Fitness with AI Solutions",
+      "date": null,
+      "summary": "DXFactor has partnered with EGYM to provide AI-powered solutions for the fitness industry, enabling fitness brands to rapidly update their platforms and integrate personalized content."
+    },
+    {
+      "title": "DXFactor Founder Explains Why Digital Transformation is a Radical Rethinking of How to Use Technology",
+      "date": null,
+      "summary": "The founder of DXFactor has explained the company's mission to revolutionize the fitness industry through digital transformation, highlighting the importance of leveraging technology to drive business outcomes."
+    },
+    {
+      "title": "DXFactor Launches New Martech Consulting Practice",
+      "date": null,
+      "summary": "DXFactor has launched a new Martech consulting practice, aimed at helping enterprises accelerate AI-first digital transformation."
+    },
+    {
+      "title": "DXFactor Recognized as Top AI and Machine Learning Company",
+      "date": null,
+      "summary": "DXFactor has been recognized as a top AI and machine learning company, providing specialized AI and digital transformation services to the fitness and wellness industry."
+    }
+  ],
+  "llm_analysis": {
+    "pain_points": [
+      "The fitness industry faces significant challenges in providing personalized user experiences, with many gyms and fitness facilities struggling to optimize operations and enhance member satisfaction.",
+      "The lack of effective data analysis and insights hinders the ability of fitness brands to make informed decisions and drive business outcomes.",
+      "The integration of AI-powered solutions and digital transformation services is crucial for the fitness industry to remain competitive and provide innovative experiences for members."
+    ],
+    "growth_signals": [
+      "Partnership with ABC Fitness",
+      "Partnership with EGYM",
+      "Launch of new Martech consulting practice"
+    ],
+    "tech_stack_hints": [
+      "AI-powered solutions",
+      "Generative AI",
+      "Data warehousing",
+      "Custom software integrations"
+    ],
+    "summary": "DXFactor is a rapidly growing AI Engineering firm that provides digital transformation services to the fitness and wellness industry. The company has partnered with major industry players such as ABC Fitness and EGYM, and has launched a new Martech consulting practice. DXFactor's focus on AI-powered solutions and personalized user experiences positions the company for continued growth and success in the industry."
+  },
+  "recommended_services": [
+    {
+      "service": "AI-Powered Solutions",
+      "reason": "DXFactor can leverage AI-powered solutions to enhance the fitness industry, providing personalized user experiences and driving business outcomes for clients. The company's expertise in AI engineering and digital transformation positions it well to deliver these services.",
+      "priority": "high"
+    },
+    {
+      "service": "Digital Transformation Services",
+      "reason": "DXFactor's digital transformation services can help fitness brands optimize operations and enhance member satisfaction, driving business outcomes and revenue growth. The company's focus on AI-powered solutions and personalized user experiences makes it an ideal partner for digital transformation initiatives.",
+      "priority": "high"
+    },
+    {
+      "service": "Data Warehousing and Analytics",
+      "reason": "DXFactor can provide data warehousing and analytics services to help fitness brands make informed decisions and drive business outcomes. The company's expertise in data analysis and insights can help clients optimize operations and enhance member satisfaction.",
+      "priority": "medium"
+    }
+  ],
+  "company_snapshot": [
+    {
+      "label": "4+ Years",
+      "caption": "Years in business"
+    },
+    {
+      "label": "150+",
+      "caption": "Total employees"
+    },
+    {
+      "label": "AI Engineering",
+      "caption": "Specialized service offering"
+    },
+    {
+      "label": "Fitness and Wellness",
+      "caption": "Primary industry focus"
+    }
+  ],
+  "spotlight_use_case": {
+    "title": "AI-Powered Fitness Platform",
+    "stages": [
+      {
+        "stage": "Ingest",
+        "description": "DXFactor ingests data from various sources, including fitness equipment, mobile apps, and wearables, to provide a comprehensive view of member activity and behavior."
+      },
+      {
+        "stage": "Analyze",
+        "description": "DXFactor's AI-powered solutions analyze the ingested data, providing insights into member behavior, preferences, and pain points, and identifying opportunities for personalized experiences and targeted marketing."
+      },
+      {
+        "stage": "Act",
+        "description": "DXFactor's platform takes action on the insights generated, providing personalized recommendations and content to members, and enabling fitness brands to optimize operations and enhance member satisfaction."
+      },
+      {
+        "stage": "Report",
+        "description": "DXFactor's platform provides detailed reporting and analytics, enabling fitness brands to track key performance indicators and make informed decisions about their business."
+      }
+    ],
+    "estimated_outcomes": [
+      "25% increase in member engagement",
+      "15% increase in revenue",
+      "20% reduction in member churn"
+    ]
+  }
+}
