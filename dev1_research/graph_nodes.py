@@ -28,21 +28,13 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
 from typing import Optional, TypedDict
 
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 logger = logging.getLogger("graph_nodes")
 
-# Ensure repo root is on sys.path, same pattern as analyzer.py, so this
-# module works whether run standalone from inside dev1_research/ OR
-# imported as part of the dev1_research package from the repo root
-# (e.g. by Dev2's graph/workflow.py doing
-#  `from dev1_research.graph_nodes import build_dev1_subgraph`).
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from dev1_research.search import find_company_website
-from dev1_research.scraper import scrape_company_website
+from search import find_company_website
+from scraper import scrape_company_website
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +198,7 @@ def analyze_node(state: ResearchState) -> ResearchState:
     site = state.get("scraped_site")
 
     try:
-        from dev1_research.analyzer import analyze_company
+        from analyzer import analyze_company
         result = analyze_company(company_name, site)
         state["company_research"] = result.model_dump()
         state["error"] = None
@@ -327,9 +319,6 @@ def build_dev1_subgraph():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import json
-    from pathlib import Path
-
     company = sys.argv[1] if len(sys.argv) > 1 else "KFintech"
 
     app = build_dev1_subgraph()
@@ -352,15 +341,20 @@ if __name__ == "__main__":
         print(f"  - {note}")
 
     if final_state.get("company_research"):
+        import json
         print(f"\nRecommended services:")
         print(json.dumps(final_state["company_research"].get("recommended_services", []), indent=2))
-
-        # Save the full result to disk, same pattern as day7_e2e_test.py
-        out_dir = Path("graph_test_output")
-        out_dir.mkdir(exist_ok=True)
-        fname = out_dir / f"{company.replace(' ', '_').lower()}.json"
-        with open(fname, "w", encoding="utf-8") as f:
-            json.dump(final_state["company_research"], f, indent=2, default=str)
-        print(f"\nFull result saved to: {fname}")
     else:
         print("\nNo research result produced.")
+    
+    # Save output to file
+    if final_state.get("company_research"):
+        import pathlib
+        out_dir = pathlib.Path(__file__).parent.parent / "outputs"
+        out_dir.mkdir(exist_ok=True)
+        out_file = out_dir / f"{company.replace(' ', '_')}.json"
+        import json
+        out_file.write_text(
+            json.dumps(final_state["company_research"], indent=2, default=str)
+        )
+        print(f"\n✅ Saved to: {out_file}")
