@@ -2,24 +2,39 @@
 ppt_generator.py — Dev2 service
 Consumes a CompanyResearch object and produces a filled .pptx file.
 
-Slides:
-  1. Title
-  2. About
-  3. Products & Services
-  4. News
-  5. LLM Analysis
-  6. Recommended Services
-  7. Company Snapshot       ← NEW (skipped if company_snapshot is empty)
-  8. Spotlight Use Case     ← NEW (skipped if spotlight_use_case is None)
+Template: AIBurst-PitchDeck-2.pptx (9 slides)
+  1. Title (dynamic: Company Name, Company Logo)
+  2. About (dynamic)
+  3. Founder Profile (STATIC — same on every deck)
+  4. Offerings / Products & Services (dynamic)
+  5. Latest News (dynamic)
+  6. Analysis (dynamic)
+  7. Recommendations (dynamic)
+  8. Our Team (STATIC — same on every deck)
+  9. Closing / Contact (STATIC — same on every deck)
+
+Notes:
+  - {{Subheading}} placeholder is removed entirely (dropped per Day 11 decision).
+  - Company Logo is downloaded from data.logo_url (validated Hunter.io URL from
+    dev1_research/logo.py) and inserted as an image, preserving aspect ratio.
+    If logo_url is None or the download fails, the placeholder is removed and
+    the slide is left without a logo rather than erroring out.
+  - Day 8's snapshot/spotlight slides are NOT used with this template (dropped
+    per Day 11 decision) — this template has no corresponding slide for them.
 """
+import io
 import os
 import uuid
+
+import requests
 from pptx import Presentation
-from pptx.util import Pt
+from pptx.util import Inches
 from shared.schema import CompanyResearch
 
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "templates", "template.pptx")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "outputs")
+
+LOGO_DOWNLOAD_TIMEOUT = 5
 
 
 # ── text helpers ──────────────────────────────────────────────────────────────
@@ -61,86 +76,67 @@ def _format_recommended_services(services: list) -> str:
     return "\n\n".join(lines)
 
 
-# ── new slide helpers ─────────────────────────────────────────────────────────
+# ── shape helpers ─────────────────────────────────────────────────────────────
 
-def _set_text_frame(tf, lines: list[tuple]):
+def _find_shapes_with_text(slide, token: str) -> list:
+    """Return all shapes on a slide whose text frame contains the given token."""
+    matches = []
+    for shape in slide.shapes:
+        if shape.has_text_frame and token in shape.text_frame.text:
+            matches.append(shape)
+    return matches
+
+
+def _remove_shape(shape) -> None:
+    shape._element.getparent().remove(shape._element)
+
+
+def _remove_placeholder_shapes(prs: Presentation, token: str) -> None:
+    """Remove every shape (across all slides) whose text is exactly/contains
+    the given placeholder token. Used for placeholders we've decided to drop
+    entirely (e.g. {{Subheading}})."""
+    for slide in prs.slides:
+        for shape in _find_shapes_with_text(slide, token):
+            _remove_shape(shape)
+
+
+LOGO_TARGET_HEIGHT = Inches(0.65)  # matches the AIBurst brand logo size used elsewhere in the deck
+
+
+def _insert_logo(prs: Presentation, logo_url: str | None) -> None:
     """
-    Populate a text frame from a list of (text, bold, font_size) tuples.
-    Clears existing content first.
+    Finds the {{Company Logo}} placeholder shape, captures its center point,
+    removes the placeholder, and — if logo_url is available — downloads the
+    image and inserts it centered on that same point. Sized to
+    LOGO_TARGET_HEIGHT (matching the AIBurst brand logo's size elsewhere in
+    the deck) rather than the original placeholder's small box; width is
+    auto-computed by python-pptx to preserve the image's aspect ratio.
+
+    If logo_url is None or the download fails for any reason, the slide is
+    simply left without a logo (placeholder removed, no image inserted) —
+    this must never raise or block deck generation.
     """
-    tf.clear()
-    first = True
-    for text, bold, size in lines:
-        p = tf.paragraphs[0] if first else tf.add_paragraph()
-        first = False
-        run = p.add_run()
-        run.text = text
-        run.font.bold = bold
-        if size:
-            run.font.size = Pt(size)
+    token = "{{Company Logo}}"
+    for slide in prs.slides:
+        for shape in _find_shapes_with_text(slide, token):
+            center_x = shape.left + shape.width // 2
+            center_y = shape.top + shape.height // 2
+            _remove_shape(shape)
 
+            if not logo_url:
+                continue
 
-def _add_snapshot_slide(prs: Presentation, stats: list) -> None:
-    """
-    Slide 7 — Company at a Glance.
-    Adds one stat block per SnapshotStat: bold label + lighter caption.
-    Skipped entirely if stats list is empty.
-    """
-    if not stats:
-        return
-
-    layout = prs.slide_layouts[1]          # Title and Content
-    slide = prs.slides.add_slide(layout)
-
-    if slide.shapes.title:
-        slide.shapes.title.text = "Company at a Glance"
-
-    content_ph = slide.placeholders[1]
-    tf = content_ph.text_frame
-    tf.word_wrap = True
-
-    lines = []
-    for stat in stats:
-        lines.append((stat.label, True, 20))
-        lines.append((f"  {stat.caption}", False, 12))
-        lines.append(("", False, 10))          # spacer
-
-    _set_text_frame(tf, lines)
-
-
-def _add_spotlight_slide(prs: Presentation, use_case) -> None:
-    """
-    Slide 8 — Spotlight Use Case (flagship AI pipeline).
-    Skipped entirely if use_case is None.
-    """
-    if not use_case:
-        return
-
-    layout = prs.slide_layouts[1]
-    slide = prs.slides.add_slide(layout)
-
-    if slide.shapes.title:
-        slide.shapes.title.text = use_case.title
-
-    content_ph = slide.placeholders[1]
-    tf = content_ph.text_frame
-    tf.word_wrap = True
-
-    lines = []
-
-    # Pipeline stages
-    for stage in use_case.stages:
-        lines.append((f"→ {stage.stage}", True, 14))
-        lines.append((f"   {stage.description}", False, 12))
-        lines.append(("", False, 10))
-
-    # Outcomes
-    if use_case.estimated_outcomes:
-        lines.append(("Expected Outcomes", True, 14))
-        for outcome in use_case.estimated_outcomes:
-            lines.append((f"• {outcome}", False, 12))
-
-    _set_text_frame(tf, lines)
+            try:
+                resp = requests.get(logo_url, timeout=LOGO_DOWNLOAD_TIMEOUT)
+                if resp.status_code == 200 and resp.content:
+                    image_stream = io.BytesIO(resp.content)
+                    pic = slide.shapes.add_picture(image_stream, 0, 0, height=LOGO_TARGET_HEIGHT)
+                    pic.left = center_x - pic.width // 2
+                    pic.top = center_y - pic.height // 2
+            except Exception:
+                # Logo is a nice-to-have, not critical — never let a network
+                # hiccup here break PPT generation.
+                pass
 
 
 # ── main entry point ──────────────────────────────────────────────────────────
@@ -154,10 +150,9 @@ def generate_pptx(data: CompanyResearch) -> str:
 
     prs = Presentation(TEMPLATE_PATH)
 
-    # Replacements for the 6 existing template slides
     replacements = {
-        "{{company_name}}": data.company_name,
-        "{{website_url}}": data.website_url,
+        "{title}": f"AI-Integration Pipeline for {data.company_name}",
+        "{{Company Name}}": data.company_name,
         "{{about_summary}}": data.about.summary if data.about else "N/A",
         "{{industry}}": data.about.industry if data.about else "N/A",
         "{{founded}}": data.about.founded or "N/A",
@@ -175,9 +170,9 @@ def generate_pptx(data: CompanyResearch) -> str:
         for shape in slide.shapes:
             _replace_text(shape, replacements)
 
-    # Append new slides (each helper skips itself if data is empty/None)
-    _add_snapshot_slide(prs, data.company_snapshot)
-    _add_spotlight_slide(prs, data.spotlight_use_case)
+    # Dropped placeholders / features (Day 11 decisions)
+    _remove_placeholder_shapes(prs, "{{Subheading}}")
+    _insert_logo(prs, getattr(data, "logo_url", None))
 
     filename = f"{data.company_name.replace(' ', '_')}_{uuid.uuid4().hex[:8]}.pptx"
     output_path = os.path.join(OUTPUT_DIR, filename)
