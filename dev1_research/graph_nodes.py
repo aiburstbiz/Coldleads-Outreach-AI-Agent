@@ -2,23 +2,31 @@
 dev1_research/graph_nodes.py
 
 LangGraph nodes for Dev1's research pipeline, with an evaluator/critic
-node after EVERY major step (search, scrape, analyze). Each evaluator
-checks whether that step's output is good enough to continue, and can
-route back to retry the same step (up to a max) instead of blindly
-accepting weak results or failing outright.
+node after EVERY major step (search, scrape, analyze), PLUS a Level-2
+fact-checking critic that verifies extracted facts against the original
+source content before accepting the final result.
 
-v3: state now stores scraped_site as a plain dict (via ScrapedSite.to_dict())
-instead of the raw dataclass object, and company_research uses
-model_dump(mode="json") instead of model_dump() so the Priority enum
-serializes as a plain string. This avoids the "unregistered type"
-checkpoint warnings LangGraph's SQLite checkpointer raised for
-ScrapedPage/ScrapedSite/Priority, which it flagged as becoming a hard
-error in a future version.
+Two levels of critic:
+    Level 1 (evaluate_analyze_node): "Is the output complete enough?"
+        - checks for missing pain points, industry, snapshot, contact, news
+    Level 2 (fact_check_node): "Is the output actually correct?"
+        - re-sends source content + extracted facts to Groq
+        - asks it to verify each fact-bearing field against the source
+        - unverified/hallucinated facts get nulled out rather than
+          risking a fabricated stat/contact detail reaching a client deck
+
+Only fact-bearing fields are verified (founded, size, contact info,
+company_snapshot, news). Analytical/inferred fields (pain_points,
+recommended_services, spotlight_use_case) are NOT re-verified against
+the source, since they are explicitly reasoned conclusions, not direct
+extractions - flagging them as "not in source" would be a false positive
+by design.
 
 Flow:
     search -> evaluate_search -> [retry search | continue | fail]
     scrape -> evaluate_scrape -> [retry scrape | continue | fail]
-    analyze -> evaluate_analyze -> [retry analyze | continue | fail]
+    analyze -> evaluate_analyze -> [retry analyze | continue | accept_anyway]
+    fact_check -> END   (runs once, after analyze is done retrying)
 
 Usage (standalone test, no LangGraph needed):
     python graph_nodes.py "KFintech"
@@ -30,7 +38,9 @@ nodes in graph/workflow.py):
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Optional, TypedDict
@@ -51,8 +61,8 @@ from dev1_research.scraper import scrape_company_website, ScrapedSite
 class ResearchState(TypedDict, total=False):
     company_name: str
     website_url: Optional[str]
-    scraped_site: Optional[dict]  # plain dict form (ScrapedSite.to_dict()), NOT the raw object -
-                                    # keeps LangGraph's checkpointer happy (no custom type registration needed)
+    scraped_site: Optional[dict]  # plain dict form (ScrapedSite.to_dict())
+    source_text: Optional[str]    # the exact text (site + external context) sent to Groq for analysis - needed by fact_check_node to verify claims
     company_research: Optional[dict]  # CompanyResearch.model_dump(mode="json")
 
     # Tracking / control fields
@@ -61,10 +71,11 @@ class ResearchState(TypedDict, total=False):
     search_attempts: int
     scrape_attempts: int
     analyze_attempts: int
-    quality_notes: list[str]  # human-readable evaluator notes, for debugging
+    quality_notes: list[str]
+    fact_check_notes: list[str]  # what the Level-2 critic found/corrected
 
 
-MAX_RETRIES_PER_STEP = 2  # retry up to 2 extra times (3 attempts total) before giving up
+MAX_RETRIES_PER_STEP = 2
 
 
 def _init_state(company_name: str) -> ResearchState:
@@ -72,6 +83,7 @@ def _init_state(company_name: str) -> ResearchState:
         company_name=company_name,
         website_url=None,
         scraped_site=None,
+        source_text=None,
         company_research=None,
         current_step="start",
         error=None,
@@ -79,6 +91,7 @@ def _init_state(company_name: str) -> ResearchState:
         scrape_attempts=0,
         analyze_attempts=0,
         quality_notes=[],
+        fact_check_notes=[],
     )
 
 
@@ -104,7 +117,6 @@ def search_node(state: ResearchState) -> ResearchState:
 
 
 def evaluate_search_node(state: ResearchState) -> ResearchState:
-    """Quality check: did we get a confident, real website?"""
     notes = state.setdefault("quality_notes", [])
 
     if state.get("error"):
@@ -142,8 +154,6 @@ def scrape_node(state: ResearchState) -> ResearchState:
 
     try:
         site = scrape_company_website(website_url)
-        # Store as a plain dict, not the raw ScrapedSite object - avoids
-        # LangGraph checkpointer "unregistered type" serialization issues
         state["scraped_site"] = site.to_dict()
         state["error"] = None
         ok_pages = [p["page_type"] for p in state["scraped_site"]["pages"] if p["success"]]
@@ -157,13 +167,6 @@ def scrape_node(state: ResearchState) -> ResearchState:
 
 
 def evaluate_scrape_node(state: ResearchState) -> ResearchState:
-    """Quality check: did we get any real content, or was everything blocked?
-
-    NOTE: even 0 successful pages isn't necessarily fatal, since
-    analyze_node's external search (news_search.py) can still produce a
-    result. So this evaluator flags a WARNING rather than forcing a
-    retry, unless scraping itself threw an exception.
-    """
     notes = state.setdefault("quality_notes", [])
 
     if state.get("error"):
@@ -196,7 +199,7 @@ def route_after_scrape(state: ResearchState) -> str:
 
 
 # ---------------------------------------------------------------------------
-# STEP 3: analyze + evaluator
+# STEP 3: analyze + Level-1 evaluator (completeness)
 # ---------------------------------------------------------------------------
 
 def analyze_node(state: ResearchState) -> ResearchState:
@@ -205,14 +208,16 @@ def analyze_node(state: ResearchState) -> ResearchState:
     site_dict = state.get("scraped_site")
 
     try:
-        from dev1_research.analyzer import analyze_company
-        # Reconstruct the real ScrapedSite object only here, transiently -
-        # analyze_company() needs its .all_text() / .base_url, but the
-        # object itself never gets stored back into graph state.
+        from dev1_research.analyzer import analyze_company, _build_source_text
         site = ScrapedSite.from_dict(site_dict) if site_dict else ScrapedSite(base_url="")
-        result = analyze_company(company_name, site)
-        # mode="json" converts the Priority enum (and datetime) to plain
-        # strings, so nothing but built-in types end up in graph state
+
+        # Build and stash the exact source text used for analysis, so
+        # fact_check_node can verify claims against the SAME content
+        # Groq actually saw (not re-fetch it, which could differ run to run)
+        source_text = _build_source_text(company_name, site)
+        state["source_text"] = source_text
+
+        result = analyze_company(company_name, site, source_text=source_text)
         state["company_research"] = result.model_dump(mode="json")
         state["error"] = None
         logger.info("[ANALYZE attempt %d] Industry: %s",
@@ -226,16 +231,7 @@ def analyze_node(state: ResearchState) -> ResearchState:
 
 
 def evaluate_analyze_node(state: ResearchState) -> ResearchState:
-    """Quality check: is this analysis actually rich enough to pitch with?
-
-    Checks a handful of concrete signals rather than just "did it not
-    crash" - this is the evaluator most worth having, since a technically
-    successful call can still return a thin, generic result.
-
-    Also flags missing contact info and missing news items, not just
-    pain points/industry/summary/snapshot - these previously slipped
-    through as "analyze_ok" even when genuinely empty.
-    """
+    """Level 1 critic: 'Is the output complete enough to use?'"""
     notes = state.setdefault("quality_notes", [])
 
     if state.get("error"):
@@ -279,10 +275,236 @@ def route_after_analyze(state: ResearchState) -> str:
         logger.warning("Retrying analyze (attempt %d)...", state["analyze_attempts"] + 1)
         return "retry"
     logger.warning(
-        "Analyze still thin after %d attempts - accepting best available result for %s",
+        "Analyze still thin after %d attempts - proceeding to fact-check with best available result for %s",
         state["analyze_attempts"], state["company_name"],
     )
     return "accept_anyway"
+
+
+# ---------------------------------------------------------------------------
+# STEP 4: Level-2 critic - fact verification against source content
+# (EXTENDED: now also verifies products, services, growth_signals,
+# tech_stack_hints — not just founded/size/contact/snapshot/news)
+# ---------------------------------------------------------------------------
+
+FACT_CHECK_PROMPT_TEMPLATE = """You are a fact-checking critic. You will be given SOURCE CONTENT (scraped
+website text and external search snippets) and a set of EXTRACTED FACTS that were pulled from that content
+by another AI. Your job is to verify each fact actually appears in (or is directly, unambiguously implied
+by) the source content — not to judge whether it seems plausible.
+
+SOURCE CONTENT:
+{source_text}
+
+EXTRACTED FACTS TO VERIFY:
+{facts_json}
+
+For EACH fact listed, return "verified" if it clearly appears in the source content (exact match or very
+close paraphrase), "unverified" if it does NOT appear anywhere in the source content, or cannot be
+confirmed. Do not mark something "unverified" just because it seems surprising — only mark it unverified if
+you genuinely cannot find it anywhere in the provided source content.
+
+Return ONLY a JSON object with this exact structure, no markdown, no explanation:
+{{
+  "founded": "verified" or "unverified",
+  "size": "verified" or "unverified",
+  "email": "verified" or "unverified",
+  "phone": "verified" or "unverified",
+  "address": "verified" or "unverified",
+  "snapshot_stats": ["verified" or "unverified", ...],
+  "news_items": ["verified" or "unverified", ...],
+  "products": ["verified" or "unverified", ...],
+  "services": ["verified" or "unverified", ...],
+  "growth_signals": ["verified" or "unverified", ...],
+  "tech_stack_hints": ["verified" or "unverified", ...]
+}}
+
+Every array field above must have the SAME LENGTH and SAME ORDER as the corresponding facts listed below,
+one verdict per item."""
+
+
+def _build_facts_to_verify(cr: dict) -> dict:
+    """Pull out just the fact-bearing fields worth verifying — not the
+    analytical/inferred fields like pain_points or recommended_services,
+    which are reasoned conclusions rather than direct extractions."""
+    about = cr.get("about", {})
+    contact = cr.get("contact", {})
+    llm = cr.get("llm_analysis", {})
+    return {
+        "founded": about.get("founded"),
+        "size": about.get("size"),
+        "email": contact.get("email"),
+        "phone": contact.get("phone"),
+        "address": contact.get("address"),
+        "snapshot_stats": [
+            f"{s.get('label', '')}: {s.get('caption', '')}"
+            for s in cr.get("company_snapshot", [])
+        ],
+        "news_items": [n.get("title", "") for n in cr.get("news", [])],
+        "products": cr.get("products", []),
+        "services": cr.get("services", []),
+        "growth_signals": llm.get("growth_signals", []),
+        "tech_stack_hints": llm.get("tech_stack_hints", []),
+    }
+
+
+def fact_check_node(state: ResearchState) -> ResearchState:
+    """Level 2 critic: 'Is the output actually correct and grounded in
+    real sources?' Re-sends the source content + extracted facts to Groq,
+    asks it to verify each one, and removes/nulls out anything that
+    couldn't be confirmed rather than risking a fabricated detail
+    reaching a client deck. Runs once, after analyze is done retrying.
+
+    Covers ALL fact-bearing fields: founded, size, contact info,
+    company_snapshot, news, products, services, growth_signals,
+    tech_stack_hints. Does NOT cover pain_points, recommended_services,
+    or spotlight_use_case — those are analytical/inferred content, not
+    direct extractions, so "must appear in source" doesn't apply to them
+    the same way (that would need a different kind of relevance check,
+    not a fact-check)."""
+    notes = state.setdefault("fact_check_notes", [])
+
+    cr = state.get("company_research")
+    source_text = state.get("source_text")
+
+    if not cr:
+        notes.append("skipped: no company_research to fact-check")
+        return state
+
+    if not source_text or not source_text.strip():
+        notes.append("skipped: no source_text available to verify against")
+        return state
+
+    facts = _build_facts_to_verify(cr)
+
+    has_any_fact = any([
+        facts["founded"], facts["size"], facts["email"], facts["phone"],
+        facts["address"], facts["snapshot_stats"], facts["news_items"],
+        facts["products"], facts["services"], facts["growth_signals"],
+        facts["tech_stack_hints"],
+    ])
+    if not has_any_fact:
+        notes.append("skipped: no fact-bearing fields were extracted to verify")
+        return state
+
+    try:
+        from groq import Groq
+        api_key = os.getenv("GROQ_API_KEY")
+        client = Groq(api_key=api_key)
+        model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+        trimmed_source = source_text[:14000] if len(source_text) > 14000 else source_text
+
+        prompt = FACT_CHECK_PROMPT_TEMPLATE.format(
+            source_text=trimmed_source,
+            facts_json=json.dumps(facts, indent=2),
+        )
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a precise fact-checking assistant. Return ONLY valid JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.1,
+            max_tokens=1500,  # bumped up slightly - more fields to verify now
+        )
+
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
+        verdicts = json.loads(raw)
+
+    except Exception as e:
+        notes.append(f"fact-check call failed, skipping verification (keeping facts as-is): {e}")
+        logger.warning("Fact-check node failed: %s", e)
+        return state
+
+    corrections = []
+    about = cr.setdefault("about", {})
+    contact = cr.setdefault("contact", {})
+    llm = cr.setdefault("llm_analysis", {})
+
+    # --- Scalar fields ---
+    if facts["founded"] and verdicts.get("founded") != "verified":
+        corrections.append(f"founded ('{facts['founded']}') -> unverified, nulled")
+        about["founded"] = None
+
+    if facts["size"] and verdicts.get("size") != "verified":
+        corrections.append(f"size ('{facts['size']}') -> unverified, nulled")
+        about["size"] = None
+
+    if facts["email"] and verdicts.get("email") != "verified":
+        corrections.append(f"email ('{facts['email']}') -> unverified, nulled")
+        contact["email"] = None
+
+    if facts["phone"] and verdicts.get("phone") != "verified":
+        corrections.append(f"phone ('{facts['phone']}') -> unverified, nulled")
+        contact["phone"] = None
+
+    if facts["address"] and verdicts.get("address") != "verified":
+        corrections.append(f"address ('{facts['address']}') -> unverified, nulled")
+        contact["address"] = None
+
+    # --- List fields: helper to filter by verdict, only if lengths match ---
+    def _filter_list(field_key: str, cr_list_getter, cr_list_setter, label_fn=str):
+        verdict_list = verdicts.get(field_key, [])
+        original_list = cr_list_getter()
+        if not verdict_list or len(verdict_list) != len(original_list):
+            return  # skip if Groq didn't return matching-length verdicts
+        kept = []
+        for item, verdict in zip(original_list, verdict_list):
+            if verdict == "verified":
+                kept.append(item)
+            else:
+                corrections.append(f"{field_key} '{label_fn(item)}' -> unverified, removed")
+        cr_list_setter(kept)
+
+    _filter_list(
+        "snapshot_stats",
+        lambda: cr.get("company_snapshot", []),
+        lambda kept: cr.__setitem__("company_snapshot", kept),
+        label_fn=lambda s: s.get("label", ""),
+    )
+    _filter_list(
+        "news_items",
+        lambda: cr.get("news", []),
+        lambda kept: cr.__setitem__("news", kept),
+        label_fn=lambda n: n.get("title", ""),
+    )
+    _filter_list(
+        "products",
+        lambda: cr.get("products", []),
+        lambda kept: cr.__setitem__("products", kept),
+    )
+    _filter_list(
+        "services",
+        lambda: cr.get("services", []),
+        lambda kept: cr.__setitem__("services", kept),
+    )
+    _filter_list(
+        "growth_signals",
+        lambda: llm.get("growth_signals", []),
+        lambda kept: llm.__setitem__("growth_signals", kept),
+    )
+    _filter_list(
+        "tech_stack_hints",
+        lambda: llm.get("tech_stack_hints", []),
+        lambda kept: llm.__setitem__("tech_stack_hints", kept),
+    )
+
+    if corrections:
+        notes.append(f"fact-check corrections applied: {'; '.join(corrections)}")
+        logger.warning("[FACT-CHECK] Corrections applied: %s", corrections)
+    else:
+        notes.append("fact-check OK: all extracted facts verified against source")
+        logger.info("[FACT-CHECK] All facts verified, no corrections needed")
+
+    state["company_research"] = cr
+    return state
 
 
 # ---------------------------------------------------------------------------
@@ -294,10 +516,7 @@ def build_dev1_subgraph():
     search -> evaluate -> (retry|continue|fail)
     scrape -> evaluate -> (retry|continue|fail)
     analyze -> evaluate -> (retry|continue|accept_anyway)
-
-    Returns a compiled LangGraph app that can be run standalone, or
-    imported and composed into the full graph/workflow.py with Dev2's
-    nodes appended after this subgraph's END.
+    fact_check -> END   (Level-2 critic, runs once)
     """
     from langgraph.graph import StateGraph, END
 
@@ -309,6 +528,7 @@ def build_dev1_subgraph():
     graph.add_node("evaluate_scrape", evaluate_scrape_node)
     graph.add_node("analyze", analyze_node)
     graph.add_node("evaluate_analyze", evaluate_analyze_node)
+    graph.add_node("fact_check", fact_check_node)
 
     graph.set_entry_point("search")
 
@@ -327,8 +547,10 @@ def build_dev1_subgraph():
     graph.add_edge("analyze", "evaluate_analyze")
     graph.add_conditional_edges(
         "evaluate_analyze", route_after_analyze,
-        {"retry": "analyze", "continue": END, "accept_anyway": END},
+        {"retry": "analyze", "continue": "fact_check", "accept_anyway": "fact_check"},
     )
+
+    graph.add_edge("fact_check", END)
 
     return graph.compile()
 
@@ -338,7 +560,7 @@ def build_dev1_subgraph():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import json
+    import json as _json
     from pathlib import Path
 
     company = sys.argv[1] if len(sys.argv) > 1 else "KFintech"
@@ -346,7 +568,7 @@ if __name__ == "__main__":
     app = build_dev1_subgraph()
     initial_state = _init_state(company)
 
-    print(f"\nRunning Dev1 subgraph (with evaluators) for: {company}")
+    print(f"\nRunning Dev1 subgraph (with Level-1 + Level-2 critics) for: {company}")
     print("=" * 60)
 
     final_state = app.invoke(initial_state)
@@ -358,19 +580,22 @@ if __name__ == "__main__":
     print(f"Search attempts    : {final_state['search_attempts']}")
     print(f"Scrape attempts    : {final_state['scrape_attempts']}")
     print(f"Analyze attempts   : {final_state['analyze_attempts']}")
-    print(f"\nQuality notes (evaluator log):")
+    print(f"\nLevel-1 quality notes:")
     for note in final_state.get("quality_notes", []):
+        print(f"  - {note}")
+    print(f"\nLevel-2 fact-check notes:")
+    for note in final_state.get("fact_check_notes", []):
         print(f"  - {note}")
 
     if final_state.get("company_research"):
         print(f"\nRecommended services:")
-        print(json.dumps(final_state["company_research"].get("recommended_services", []), indent=2))
+        print(_json.dumps(final_state["company_research"].get("recommended_services", []), indent=2))
 
         out_dir = Path("graph_test_output")
         out_dir.mkdir(exist_ok=True)
         fname = out_dir / f"{company.replace(' ', '_').lower()}.json"
         with open(fname, "w", encoding="utf-8") as f:
-            json.dump(final_state["company_research"], f, indent=2, default=str)
+            _json.dump(final_state["company_research"], f, indent=2, default=str)
         print(f"\nFull result saved to: {fname}")
     else:
         print("\nNo research result produced.")
