@@ -62,6 +62,7 @@ from dev1_research.graph_nodes import (
     analyze_node,
     evaluate_analyze_node,
     route_after_analyze,
+    fact_check_node,
 )
 
 
@@ -93,6 +94,7 @@ def build_pipeline(checkpointer=None) -> "CompiledStateGraph":
     graph.add_node("evaluate_scrape", evaluate_scrape_node)
     graph.add_node("analyze", analyze_node)
     graph.add_node("evaluate_analyze", evaluate_analyze_node)
+    graph.add_node("fact_check", fact_check_node)
 
     # ── Dev2 nodes ────────────────────────────────────────────────────────
     graph.add_node("ppt", ppt_node)
@@ -119,8 +121,9 @@ def build_pipeline(checkpointer=None) -> "CompiledStateGraph":
     graph.add_edge("analyze", "evaluate_analyze")
     graph.add_conditional_edges(
         "evaluate_analyze", route_after_analyze,
-        {"retry": "analyze", "continue": "ppt", "accept_anyway": "ppt"},
+        {"retry": "analyze", "continue": "fact_check", "accept_anyway": "fact_check"},
     )
+    graph.add_edge("fact_check", "ppt")
 
     # ── Dev2 edges ────────────────────────────────────────────────────────
     graph.add_edge("ppt", "email")
