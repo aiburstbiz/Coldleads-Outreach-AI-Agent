@@ -7,9 +7,13 @@ checks whether that step's output is good enough to continue, and can
 route back to retry the same step (up to a max) instead of blindly
 accepting weak results or failing outright.
 
-v2: evaluate_analyze_node now also checks for missing contact info and
-news items, not just pain points/industry/summary/snapshot — these were
-silently passing through empty in v1 since nothing flagged them.
+v3: state now stores scraped_site as a plain dict (via ScrapedSite.to_dict())
+instead of the raw dataclass object, and company_research uses
+model_dump(mode="json") instead of model_dump() so the Priority enum
+serializes as a plain string. This avoids the "unregistered type"
+checkpoint warnings LangGraph's SQLite checkpointer raised for
+ScrapedPage/ScrapedSite/Priority, which it flagged as becoming a hard
+error in a future version.
 
 Flow:
     search -> evaluate_search -> [retry search | continue | fail]
@@ -34,15 +38,10 @@ from typing import Optional, TypedDict
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 logger = logging.getLogger("graph_nodes")
 
-# Ensure repo root is on sys.path, same pattern as analyzer.py, so this
-# module works whether run standalone from inside dev1_research/ OR
-# imported as part of the dev1_research package from the repo root
-# (e.g. by Dev2's graph/workflow.py doing
-#  `from dev1_research.graph_nodes import build_dev1_subgraph`).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dev1_research.search import find_company_website
-from dev1_research.scraper import scrape_company_website
+from dev1_research.scraper import scrape_company_website, ScrapedSite
 
 
 # ---------------------------------------------------------------------------
@@ -52,8 +51,9 @@ from dev1_research.scraper import scrape_company_website
 class ResearchState(TypedDict, total=False):
     company_name: str
     website_url: Optional[str]
-    scraped_site: object  # ScrapedSite instance, not JSON-serializable directly
-    company_research: Optional[dict]  # CompanyResearch.model_dump()
+    scraped_site: Optional[dict]  # plain dict form (ScrapedSite.to_dict()), NOT the raw object -
+                                    # keeps LangGraph's checkpointer happy (no custom type registration needed)
+    company_research: Optional[dict]  # CompanyResearch.model_dump(mode="json")
 
     # Tracking / control fields
     current_step: str
@@ -142,9 +142,11 @@ def scrape_node(state: ResearchState) -> ResearchState:
 
     try:
         site = scrape_company_website(website_url)
-        state["scraped_site"] = site
+        # Store as a plain dict, not the raw ScrapedSite object - avoids
+        # LangGraph checkpointer "unregistered type" serialization issues
+        state["scraped_site"] = site.to_dict()
         state["error"] = None
-        ok_pages = [p.page_type for p in site.pages if p.success]
+        ok_pages = [p["page_type"] for p in state["scraped_site"]["pages"] if p["success"]]
         logger.info("[SCRAPE attempt %d] OK pages: %s", state["scrape_attempts"], ok_pages)
     except Exception as e:
         state["scraped_site"] = None
@@ -169,8 +171,8 @@ def evaluate_scrape_node(state: ResearchState) -> ResearchState:
         state["current_step"] = "scrape_error"
         return state
 
-    site = state.get("scraped_site")
-    ok_pages = [p for p in getattr(site, "pages", []) if p.success] if site else []
+    site_dict = state.get("scraped_site")
+    ok_pages = [p for p in (site_dict.get("pages", []) if site_dict else []) if p.get("success")]
 
     if not ok_pages:
         notes.append("scrape got 0 successful pages (site may be bot-blocked) - "
@@ -184,9 +186,6 @@ def evaluate_scrape_node(state: ResearchState) -> ResearchState:
 
 
 def route_after_scrape(state: ResearchState) -> str:
-    # Only retry on genuine exceptions, not on "thin" (0 pages) results -
-    # a bot-block usually won't fix itself on retry, and analyze_node's
-    # external context search can still salvage useful data.
     if state["current_step"] in ("scrape_ok", "scrape_thin"):
         return "continue"
     if state["scrape_attempts"] < MAX_RETRIES_PER_STEP + 1:
@@ -203,12 +202,18 @@ def route_after_scrape(state: ResearchState) -> str:
 def analyze_node(state: ResearchState) -> ResearchState:
     state["analyze_attempts"] = state.get("analyze_attempts", 0) + 1
     company_name = state["company_name"]
-    site = state.get("scraped_site")
+    site_dict = state.get("scraped_site")
 
     try:
         from dev1_research.analyzer import analyze_company
+        # Reconstruct the real ScrapedSite object only here, transiently -
+        # analyze_company() needs its .all_text() / .base_url, but the
+        # object itself never gets stored back into graph state.
+        site = ScrapedSite.from_dict(site_dict) if site_dict else ScrapedSite(base_url="")
         result = analyze_company(company_name, site)
-        state["company_research"] = result.model_dump()
+        # mode="json" converts the Priority enum (and datetime) to plain
+        # strings, so nothing but built-in types end up in graph state
+        state["company_research"] = result.model_dump(mode="json")
         state["error"] = None
         logger.info("[ANALYZE attempt %d] Industry: %s",
                     state["analyze_attempts"], state["company_research"]["about"]["industry"])
@@ -227,9 +232,9 @@ def evaluate_analyze_node(state: ResearchState) -> ResearchState:
     crash" - this is the evaluator most worth having, since a technically
     successful call can still return a thin, generic result.
 
-    v2: also flags missing contact info (email/phone/address all null)
-    and missing news items — these previously slipped through as
-    "analyze_ok" even when genuinely empty, since nothing checked them.
+    Also flags missing contact info and missing news items, not just
+    pain points/industry/summary/snapshot - these previously slipped
+    through as "analyze_ok" even when genuinely empty.
     """
     notes = state.setdefault("quality_notes", [])
 
@@ -270,9 +275,6 @@ def evaluate_analyze_node(state: ResearchState) -> ResearchState:
 def route_after_analyze(state: ResearchState) -> str:
     if state["current_step"] == "analyze_ok":
         return "continue"
-    # "thin" results are worth one retry (search variance might do better
-    # next time), but don't loop forever on a company with genuinely
-    # little public information available.
     if state["analyze_attempts"] < MAX_RETRIES_PER_STEP + 1:
         logger.warning("Retrying analyze (attempt %d)...", state["analyze_attempts"] + 1)
         return "retry"
@@ -280,7 +282,7 @@ def route_after_analyze(state: ResearchState) -> str:
         "Analyze still thin after %d attempts - accepting best available result for %s",
         state["analyze_attempts"], state["company_name"],
     )
-    return "accept_anyway"  # don't lose all progress - hand off what we have
+    return "accept_anyway"
 
 
 # ---------------------------------------------------------------------------
@@ -364,7 +366,6 @@ if __name__ == "__main__":
         print(f"\nRecommended services:")
         print(json.dumps(final_state["company_research"].get("recommended_services", []), indent=2))
 
-        # Save the full result to disk, same pattern as day7_e2e_test.py
         out_dir = Path("graph_test_output")
         out_dir.mkdir(exist_ok=True)
         fname = out_dir / f"{company.replace(' ', '_').lower()}.json"

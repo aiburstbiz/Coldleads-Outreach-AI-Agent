@@ -1,5 +1,6 @@
 """
-Day 3 - Website Scraper (v2 - full-site crawl, expanded block detection)
+Day 3 - Website Scraper (v3 - full-site crawl, expanded block detection,
+serializable for LangGraph checkpointing)
 dev1_research/scraper.py
 """
 
@@ -7,7 +8,7 @@ import logging
 import re
 import time
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -39,19 +40,15 @@ SKIP_PATTERNS = [
     "mailto:", "tel:", "javascript:", "#",
 ]
 
-# Phrases that indicate a bot-block / error / WAF-rejection page rather than
-# real content. If we see these (usually combined with a very short page),
-# we treat the page as FAILED rather than feeding the block-message to the
-# AI as if it were real company info.
 BLOCKED_PAGE_SIGNS = [
     "403 forbidden", "access denied", "access to this page is forbidden",
     "just a moment", "attention required", "checking your browser",
     "enable javascript and cookies", "captcha", "cloudflare ray id",
     "are you a human", "unusual traffic", "bot detection",
     "404 not found", "page not found",
-    "request rejected", "your support id is",          # generic WAF blocks (e.g. Akamai/F5)
-    "the requested url was rejected",                   # variant phrasing
-    "reference #", "error code:",                        # common WAF error-page fragments
+    "request rejected", "your support id is",
+    "the requested url was rejected",
+    "reference #", "error code:",
 ]
 
 NOISE_TAGS = [
@@ -71,6 +68,22 @@ class ScrapedPage:
     text: str = ""
     success: bool = True
     error: str = ""
+
+    def to_dict(self) -> dict:
+        """Plain-dict form for storage in LangGraph state / any msgpack
+        serializer, avoiding 'unregistered type' checkpoint warnings."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ScrapedPage":
+        return cls(
+            url=data.get("url", ""),
+            page_type=data.get("page_type", ""),
+            title=data.get("title", ""),
+            text=data.get("text", ""),
+            success=data.get("success", True),
+            error=data.get("error", ""),
+        )
 
 
 @dataclass
@@ -96,6 +109,22 @@ class ScrapedSite:
 
     def failed_pages(self) -> list[ScrapedPage]:
         return [p for p in self.pages if not p.success]
+
+    def to_dict(self) -> dict:
+        """Plain-dict form (base_url + list of page dicts) for storage
+        in LangGraph state, so the checkpointer never has to serialize
+        the raw dataclass object directly."""
+        return {
+            "base_url": self.base_url,
+            "pages": [p.to_dict() for p in self.pages],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ScrapedSite":
+        return cls(
+            base_url=data.get("base_url", ""),
+            pages=[ScrapedPage.from_dict(p) for p in data.get("pages", [])],
+        )
 
 
 def _clean_text(html: str) -> str:
@@ -140,8 +169,6 @@ def _classify_page(url: str, title: str) -> str:
 
 
 def _is_blocked_content(text: str, html: str) -> bool:
-    """Detect bot-block / WAF-rejection / error pages so we don't feed
-    the block message to the AI as if it were real company content."""
     low = text.lower()
     if any(sign in low for sign in BLOCKED_PAGE_SIGNS):
         return True
@@ -272,3 +299,10 @@ if __name__ == "__main__":
     print(f"\nTotal pages visited: {len(site.pages)}")
     print(f"Successful: {len([p for p in site.pages if p.success])}")
     print(f"Failed/blocked: {len(site.failed_pages())}")
+
+    # Round-trip test for the new serialization methods
+    as_dict = site.to_dict()
+    rebuilt = ScrapedSite.from_dict(as_dict)
+    assert rebuilt.base_url == site.base_url
+    assert len(rebuilt.pages) == len(site.pages)
+    print("\nSerialization round-trip OK (to_dict/from_dict).")
