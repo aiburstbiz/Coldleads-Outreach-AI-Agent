@@ -74,19 +74,32 @@ async def approve(
         approved_at=datetime.now(timezone.utc),
     )
 
-    result = send_email(
-        to=recipient_email,
-        subject=subject,
-        body_html=body,
-        attachment_path=job.pptx_path,
-    )
-
-    if result["success"]:
-        job_store.update_job(db, job_id, status=JobStatus.sent)
-        flash = {"type": "success", "message": f"Email sent! Message ID: {result['message_id']}"}
+    if job.from_pipeline:
+        from graph.workflow import resume_pipeline
+        result = resume_pipeline(
+            thread_id=job_id,
+            decision={"status": "approved", "email_draft": updated_draft.model_dump(mode="json")},
+        )
+        if result.get("email_sent"):
+            job_store.update_job(db, job_id, status=JobStatus.sent)
+            flash = {"type": "success", "message": f"Email sent! Message ID: {result.get('message_id')}"}
+        else:
+            job_store.update_job(db, job_id, status=JobStatus.failed)
+            flash = {"type": "error", "message": f"Send failed: {result.get('error')}"}
     else:
-        job_store.update_job(db, job_id, status=JobStatus.failed)
-        flash = {"type": "error", "message": f"Send failed: {result['error']}"}
+        result = send_email(
+            to=recipient_email,
+            subject=subject,
+            body_html=body,
+            attachment_path=job.pptx_path,
+        )
+
+        if result["success"]:
+            job_store.update_job(db, job_id, status=JobStatus.sent)
+            flash = {"type": "success", "message": f"Email sent! Message ID: {result['message_id']}"}
+        else:
+            job_store.update_job(db, job_id, status=JobStatus.failed)
+            flash = {"type": "error", "message": f"Send failed: {result['error']}"}
 
     return templates.TemplateResponse(request,
         "approval.html",
@@ -101,6 +114,11 @@ async def reject(request: Request, job_id: str, db: Session = Depends(get_db)):
         return HTMLResponse("<h2>Job not found</h2>", status_code=404)
 
     job_store.update_job(db, job_id, status=JobStatus.rejected)
+
+    if job.from_pipeline:
+        from graph.workflow import resume_pipeline
+        resume_pipeline(thread_id=job_id, decision={"status": "rejected"})
+
     flash = {"type": "error", "message": "Job rejected. You can edit and re-approve above."}
     return templates.TemplateResponse(request,
         "approval.html",

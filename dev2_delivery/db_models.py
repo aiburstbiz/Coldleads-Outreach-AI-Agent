@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, DateTime, Text, JSON
 from sqlalchemy.sql import func
-
+from sqlalchemy import Boolean
 from dev2_delivery.database import Base
 
 
@@ -15,7 +15,7 @@ class JobDB(Base):
     email_draft = Column(JSON, nullable=True)          # stored as JSONB in Postgres
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     approved_at = Column(DateTime(timezone=True), nullable=True)
-
+    from_pipeline = Column(Boolean, nullable=False, default=False)
 
 class PipelineLogDB(Base):
     __tablename__ = "logs"

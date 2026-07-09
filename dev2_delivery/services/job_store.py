@@ -32,6 +32,7 @@ def _row_to_job(row: JobDB) -> Job:
         email_draft=email_draft,
         created_at=row.created_at,
         approved_at=row.approved_at,
+        from_pipeline=row.from_pipeline,
     )
 
 def _email_to_dict(draft: Optional[EmailDraft]) -> Optional[dict]:

@@ -27,6 +27,11 @@ Thumbs.db
 
 # Database
 *.db
-*.sqlite3dev2_delivery/outputs/
+*.sqlite3
+checkpoints.sqlite
+
+dev2_delivery/outputs/
 dev2_delivery/credentials/
 outputs/
+
+patch_*.py

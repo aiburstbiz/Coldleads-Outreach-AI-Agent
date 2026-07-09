@@ -44,6 +44,8 @@ for _p in [_REPO_ROOT, _DEV1_DIR]:
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+import sqlite3
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 
 from graph.state import PipelineState
@@ -137,7 +139,12 @@ def build_pipeline(checkpointer=None) -> "CompiledStateGraph":
 
 # Import this in FastAPI routes:
 #   from graph.workflow import pipeline
-pipeline = build_pipeline()
+_DB_PATH = os.path.join(_REPO_ROOT, "checkpoints.sqlite")
+_conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+_sqlite_saver = SqliteSaver(_conn)
+_sqlite_saver.setup()
+
+pipeline = build_pipeline(checkpointer=_sqlite_saver)
 
 
 # ── convenience wrappers ──────────────────────────────────────────────────────
@@ -154,6 +161,7 @@ def run_pipeline(company_name: str, thread_id: str | None = None) -> str:
 
     initial_state: PipelineState = {
         "company_name": company_name,
+        "job_id": tid,
         "search_attempts": 0,
         "scrape_attempts": 0,
         "analyze_attempts": 0,

@@ -16,6 +16,9 @@ from dev2_delivery.gmail_sender import send_email
 from dev2_delivery.models.email import EmailDraft
 from dev2_delivery.ppt_generator import generate_pptx
 from shared.schema import CompanyResearch
+from dev2_delivery.database import SessionLocal
+from dev2_delivery.db_models import JobDB
+from dev2_delivery.services import job_store
 
 
 def _deserialize_research(state: dict) -> CompanyResearch:
@@ -44,6 +47,22 @@ def ppt_node(state: dict) -> dict:
         data = _deserialize_research(state)
         pptx_path = generate_pptx(data)
         job_id = state.get("job_id") or uuid.uuid4().hex[:12]
+
+        db = SessionLocal()
+        try:
+            row = JobDB(
+                job_id=job_id,
+                company_name=data.company_name,
+                company_data=data.model_dump(mode="json"),
+                status="pending",
+                pptx_path=pptx_path,
+                from_pipeline=True,
+            )
+            db.add(row)
+            db.commit()
+        finally:
+            db.close()
+
         return {"pptx_path": pptx_path, "job_id": job_id}
     except Exception as e:
         return {"error": f"ppt_node failed: {e}"}
@@ -53,7 +72,17 @@ def email_node(state: dict) -> dict:
     try:
         data = _deserialize_research(state)
         draft = generate_email(data)
-        return {"email_draft": _serialize(draft)}
+        draft_dict = _serialize(draft)
+
+        job_id = state.get("job_id")
+        if job_id:
+            db = SessionLocal()
+            try:
+                job_store.update_job(db, job_id, email_draft=draft)
+            finally:
+                db.close()
+
+        return {"email_draft": draft_dict}
     except Exception as e:
         return {"error": f"email_node failed: {e}"}
 
