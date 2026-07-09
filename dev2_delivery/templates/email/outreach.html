@@ -39,10 +39,14 @@
     we've helped similar companies.
   </p>
 
+  {% if signature_html %}
+  {{ signature_html | safe }}
+  {% else %}
   <p>Best regards,<br>
   <strong>{{ sender_name }}</strong><br>
   {{ sender_title }}<br>
   AIBurst</p>
+  {% endif %}
 
 </body>
 </html>

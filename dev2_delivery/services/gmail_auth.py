@@ -11,7 +11,10 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.settings.basic",
+]
 
 CREDENTIALS_PATH = os.path.join(
     os.path.dirname(__file__), "..", "credentials", "oauth_credentials.json"
@@ -49,9 +52,6 @@ def get_gmail_service():
             code = input("Paste the authorization code here: ").strip()
             flow.fetch_token(code=code)
             creds = flow.credentials
-
-        with open(TOKEN_PATH, "w") as f:
-            f.write(creds.to_json())
 
         with open(TOKEN_PATH, "w") as f:
             f.write(creds.to_json())
