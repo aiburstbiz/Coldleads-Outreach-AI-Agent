@@ -84,7 +84,8 @@ class CompanyResearch(BaseModel):
     news: List[NewsItem] = Field(default_factory=list)
     llm_analysis: LLMAnalysis
     recommended_services: List[RecommendedService] = Field(default_factory=list)
-
+    logo_url: str | None = None
+    
     # NEW — optional, additive fields. Existing code that builds/reads a
     # CompanyResearch without these keeps working unchanged since they
     # default to empty/None.

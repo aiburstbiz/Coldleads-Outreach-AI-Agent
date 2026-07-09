@@ -1,5 +1,5 @@
 """
-Day 4 - Groq Analyzer (v8 - null-string fix, founding-year consistency check)
+Day 4 - Groq Analyzer (v9 - source_text extraction for fact-check reuse)
 dev1_research/analyzer.py
 """
 
@@ -248,10 +248,13 @@ def _parse_response(company_name: str, website_url: str, raw: str) -> CompanyRes
     )
 
 
-def analyze_company(
-    company_name: str,
-    scraped_site: ScrapedSite,
-) -> CompanyResearch:
+def _build_source_text(company_name: str, scraped_site: ScrapedSite) -> str:
+    """Build the source text sent to Groq for analysis (site content +
+    external context, trimmed to the 14000-char limit). Extracted as its
+    own function so callers (like graph_nodes.py's fact_check_node) can
+    build this ONCE and pass it into analyze_company(), avoiding a
+    duplicate external search call if they also need the raw source text
+    for verification purposes."""
     scraped_text = scraped_site.all_text()
 
     own_domain = urlparse(scraped_site.base_url).netloc.lower()
@@ -267,13 +270,37 @@ def analyze_company(
     if external_context:
         scraped_text = f"{scraped_text}\n\n{external_context}".strip()
 
-    if not scraped_text.strip():
-        raise ValueError(f"No scraped content or external signals available for {company_name}")
-
     if len(scraped_text) > 14000:
         scraped_text = scraped_text[:14000] + "\n[content trimmed]"
 
-    logger.info(f"Sending {len(scraped_text)} chars to Groq for: {company_name}")
+    return scraped_text
+
+
+def analyze_company(
+    company_name: str,
+    scraped_site: ScrapedSite,
+    source_text: str | None = None,
+) -> CompanyResearch:
+    """
+    Send scraped website content + external context to Groq and return
+    a structured, presentation-ready CompanyResearch object.
+
+    Args:
+        company_name:  Company name e.g. "KFintech"
+        scraped_site:  ScrapedSite returned by scraper.py (full-site crawl)
+        source_text:   Optional pre-built source text (from _build_source_text()).
+                        If provided, this is used directly instead of rebuilding
+                        it internally — avoids a duplicate external search call
+                        when the caller (e.g. graph_nodes.py) already built it
+                        for its own purposes (like fact-checking afterward).
+    """
+    if source_text is None:
+        source_text = _build_source_text(company_name, scraped_site)
+
+    if not source_text.strip():
+        raise ValueError(f"No scraped content or external signals available for {company_name}")
+
+    logger.info(f"Sending {len(source_text)} chars to Groq for: {company_name}")
 
     client = _get_client()
 
@@ -281,7 +308,7 @@ def analyze_company(
         model=GROQ_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": _build_prompt(company_name, scraped_text)},
+            {"role": "user", "content": _build_prompt(company_name, source_text)},
         ],
         temperature=0.3,
         max_tokens=4500,

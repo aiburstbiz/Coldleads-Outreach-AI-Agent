@@ -2,9 +2,10 @@
 dev1_research/graph_nodes.py
 
 LangGraph nodes for Dev1's research pipeline, with an evaluator/critic
-node after EVERY major step (search, scrape, analyze), PLUS a Level-2
+node after EVERY major step (search, scrape, analyze), a Level-2
 fact-checking critic that verifies extracted facts against the original
-source content before accepting the final result.
+source content before accepting the final result, and a final logo-fetch
+step that populates a validated company logo URL (Hunter.io, no API key).
 
 Two levels of critic:
     Level 1 (evaluate_analyze_node): "Is the output complete enough?"
@@ -16,7 +17,8 @@ Two levels of critic:
           risking a fabricated stat/contact detail reaching a client deck
 
 Only fact-bearing fields are verified (founded, size, contact info,
-company_snapshot, news). Analytical/inferred fields (pain_points,
+company_snapshot, news, products, services, growth_signals,
+tech_stack_hints). Analytical/inferred fields (pain_points,
 recommended_services, spotlight_use_case) are NOT re-verified against
 the source, since they are explicitly reasoned conclusions, not direct
 extractions - flagging them as "not in source" would be a false positive
@@ -26,7 +28,7 @@ Flow:
     search -> evaluate_search -> [retry search | continue | fail]
     scrape -> evaluate_scrape -> [retry scrape | continue | fail]
     analyze -> evaluate_analyze -> [retry analyze | continue | accept_anyway]
-    fact_check -> END   (runs once, after analyze is done retrying)
+    fact_check -> logo -> END   (logo runs once, after fact-check is done)
 
 Usage (standalone test, no LangGraph needed):
     python graph_nodes.py "KFintech"
@@ -509,6 +511,31 @@ def fact_check_node(state: ResearchState) -> ResearchState:
 
 
 # ---------------------------------------------------------------------------
+# STEP 5: fetch + validate company logo URL (Hunter.io, no API key needed)
+# ---------------------------------------------------------------------------
+
+def logo_node(state: ResearchState) -> ResearchState:
+    """Populates company_research['logo_url'] using Hunter.io's free logo
+    API (https://logos.hunter.io/{domain}). Runs once, after fact_check,
+    since it's a cheap single HEAD request with no need for retries.
+    Leaves logo_url as None if the domain can't be resolved or Hunter
+    doesn't have a logo indexed for it — Dev2's PPT code is expected to
+    fall back to a placeholder or skip the logo element in that case."""
+    cr = state.get("company_research")
+    if not cr:
+        return state
+
+    from dev1_research.logo import get_logo_url
+
+    website_url = cr.get("website_url", "")
+    cr["logo_url"] = get_logo_url(website_url)
+    state["company_research"] = cr
+
+    logger.info("[LOGO] %s -> %s", website_url, cr["logo_url"] or "(none found)")
+    return state
+
+
+# ---------------------------------------------------------------------------
 # Build the LangGraph subgraph
 # ---------------------------------------------------------------------------
 
@@ -517,7 +544,7 @@ def build_dev1_subgraph():
     search -> evaluate -> (retry|continue|fail)
     scrape -> evaluate -> (retry|continue|fail)
     analyze -> evaluate -> (retry|continue|accept_anyway)
-    fact_check -> END   (Level-2 critic, runs once)
+    fact_check -> logo -> END   (Level-2 critic, then logo fetch, runs once each)
     """
     from langgraph.graph import StateGraph, END
 
@@ -530,6 +557,7 @@ def build_dev1_subgraph():
     graph.add_node("analyze", analyze_node)
     graph.add_node("evaluate_analyze", evaluate_analyze_node)
     graph.add_node("fact_check", fact_check_node)
+    graph.add_node("logo", logo_node)
 
     graph.set_entry_point("search")
 
@@ -551,7 +579,8 @@ def build_dev1_subgraph():
         {"retry": "analyze", "continue": "fact_check", "accept_anyway": "fact_check"},
     )
 
-    graph.add_edge("fact_check", END)
+    graph.add_edge("fact_check", "logo")
+    graph.add_edge("logo", END)
 
     return graph.compile()
 
@@ -569,7 +598,7 @@ if __name__ == "__main__":
     app = build_dev1_subgraph()
     initial_state = _init_state(company)
 
-    print(f"\nRunning Dev1 subgraph (with Level-1 + Level-2 critics) for: {company}")
+    print(f"\nRunning Dev1 subgraph (with Level-1 + Level-2 critics + logo) for: {company}")
     print("=" * 60)
 
     final_state = app.invoke(initial_state)
@@ -589,6 +618,7 @@ if __name__ == "__main__":
         print(f"  - {note}")
 
     if final_state.get("company_research"):
+        print(f"\nLogo URL: {final_state['company_research'].get('logo_url')}")
         print(f"\nRecommended services:")
         print(_json.dumps(final_state["company_research"].get("recommended_services", []), indent=2))
 
