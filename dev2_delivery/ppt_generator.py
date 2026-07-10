@@ -28,7 +28,7 @@ import uuid
 
 import requests
 from pptx import Presentation
-from pptx.util import Inches
+from pptx.util import Inches, Pt
 from shared.schema import CompanyResearch
 
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "templates", "template.pptx")
@@ -39,8 +39,18 @@ LOGO_DOWNLOAD_TIMEOUT = 5
 
 # ── text helpers ──────────────────────────────────────────────────────────────
 
+# Fields whose generated content runs long (paragraph-length, not short
+# phrases) and needs a smaller font to fit the template's content boxes
+# without overflowing into neighboring elements.
+SMALL_FONT_KEYS = {"{{pain_points}}", "{{growth_signals}}", "{{tech_stack}}", "{{recommended_services}}"}
+SMALL_FONT_SIZE = Pt(10)
+
+
 def _replace_text(shape, replacements: dict):
-    """Replace {{key}} placeholders in a shape's text frame."""
+    """Replace {{key}} placeholders in a shape's text frame. For long-content
+    fields (SMALL_FONT_KEYS), also shrinks the font so the generated text
+    fits the box instead of overflowing — the template's default 14pt is
+    sized for short template copy, not full-paragraph generated content."""
     if not shape.has_text_frame:
         return
     for para in shape.text_frame.paragraphs:
@@ -48,6 +58,8 @@ def _replace_text(shape, replacements: dict):
             for key, val in replacements.items():
                 if key in run.text:
                     run.text = run.text.replace(key, val)
+                    if key in SMALL_FONT_KEYS:
+                        run.font.size = SMALL_FONT_SIZE
 
 
 def _format_list(items: list, prefix="• ") -> str:
