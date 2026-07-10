@@ -112,7 +112,7 @@ def _remove_placeholder_shapes(prs: Presentation, token: str) -> None:
             _remove_shape(shape)
 
 
-LOGO_TARGET_HEIGHT = Inches(0.65)  # matches the AIBurst brand logo size used elsewhere in the deck
+LOGO_TARGET_HEIGHT = Inches(2.333)  # per-slide manual resize reference (KFintech_resized.pptx)
 
 
 def _insert_logo(prs: Presentation, logo_url: str | None) -> None:
@@ -163,8 +163,8 @@ def generate_pptx(data: CompanyResearch) -> str:
     prs = Presentation(TEMPLATE_PATH)
 
     replacements = {
-        "{title}": f"AI-Integration Pipeline for {data.company_name}",
-        "{{Company Name}}": data.company_name,
+        "{title}": data.company_name,
+        "{{Company Name}}": f"AI-Integration Pipeline for {data.company_name}",
         "{{about_summary}}": data.about.summary if data.about else "N/A",
         "{{industry}}": data.about.industry if data.about else "N/A",
         "{{founded}}": data.about.founded or "N/A",
