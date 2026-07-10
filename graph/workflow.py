@@ -68,6 +68,19 @@ from dev1_research.graph_nodes import (
 
 # ── routing ───────────────────────────────────────────────────────────────────
 
+def route_after_ppt(state: PipelineState) -> str:
+    """
+    If ppt_node failed (e.g. company_research was None/invalid — the case
+    seen when analyze_node never produces usable data), stop here instead
+    of continuing into email/approval with broken state. A failed job is
+    now written to the DB (status=failed) inside ppt_node's except block,
+    so it's visible in /history even though the pipeline stops.
+    """
+    if state.get("error"):
+        return "fail"
+    return "continue"
+
+
 def route_after_approval(state: PipelineState) -> str:
     if state.get("approval_status") == "approved":
         return "send"
@@ -126,7 +139,10 @@ def build_pipeline(checkpointer=None) -> "CompiledStateGraph":
     graph.add_edge("fact_check", "ppt")
 
     # ── Dev2 edges ────────────────────────────────────────────────────────
-    graph.add_edge("ppt", "email")
+    graph.add_conditional_edges(
+        "ppt", route_after_ppt,
+        {"continue": "email", "fail": END},
+    )
     graph.add_edge("email", "approval")     # approval uses interrupt() inside
     graph.add_conditional_edges(
         "approval", route_after_approval,

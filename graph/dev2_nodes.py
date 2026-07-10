@@ -43,10 +43,10 @@ def _serialize(obj) -> dict | None:
 
 
 def ppt_node(state: dict) -> dict:
+    job_id = state.get("job_id") or uuid.uuid4().hex[:12]
     try:
         data = _deserialize_research(state)
         pptx_path = generate_pptx(data)
-        job_id = state.get("job_id") or uuid.uuid4().hex[:12]
 
         db = SessionLocal()
         try:
@@ -65,7 +65,30 @@ def ppt_node(state: dict) -> dict:
 
         return {"pptx_path": pptx_path, "job_id": job_id}
     except Exception as e:
-        return {"error": f"ppt_node failed: {e}"}
+        error_msg = f"ppt_node failed: {e}"
+        # Write a failed row so this doesn't vanish silently — a broken
+        # job should be visible in /history, not just an exception that
+        # disappears into state["error"] with nothing to show for it.
+        try:
+            db = SessionLocal()
+            try:
+                company_name = state.get("company_name", "Unknown")
+                row = JobDB(
+                    job_id=job_id,
+                    company_name=company_name,
+                    company_data=None,
+                    status="failed",
+                    from_pipeline=True,
+                )
+                db.add(row)
+                db.commit()
+            finally:
+                db.close()
+        except Exception:
+            # If even the failure-logging write fails, don't let that
+            # mask the original error — just proceed to return it.
+            pass
+        return {"error": error_msg, "job_id": job_id}
 
 
 def email_node(state: dict) -> dict:
