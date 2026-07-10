@@ -5,6 +5,7 @@ pydantic==2.9.2
 # ── Agent orchestration ───────────────────────────────────
 langgraph>=1.0.0
 langchain-core>=1.4.7
+langgraph-checkpoint-sqlite>=3.1.0
 
 # ── LLM ──────────────────────────────────────────────────
 groq>=0.9.0
@@ -12,6 +13,7 @@ google-genai>=1.0.0
 
 # ── Search ────────────────────────────────────────────────
 ddgs>=9.0.0
+requests>=2.34.2
 
 # ── Scraping (Dev1) ───────────────────────────────────────
 playwright==1.47.0
@@ -33,6 +35,7 @@ google-auth-oauthlib==1.2.1
 # ── Database (Dev2) ───────────────────────────────────────
 psycopg2-binary==2.9.9
 SQLAlchemy==2.0.35
+alembic==1.18.5
 
 # ── UI ────────────────────────────────────────────────────
 streamlit==1.39.0
