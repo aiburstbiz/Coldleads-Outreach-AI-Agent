@@ -16,7 +16,7 @@ class JobStatus(str, Enum):
 class Job(BaseModel):
     job_id: str
     status: JobStatus = JobStatus.pending
-    company_data: CompanyResearch
+    company_data: Optional[CompanyResearch] = None
     pptx_path: Optional[str] = None
     email_draft: Optional[EmailDraft] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

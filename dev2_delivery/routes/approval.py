@@ -135,10 +135,11 @@ async def download(job_id: str, db: Session = Depends(get_db)):
         return HTMLResponse("<h2>Job not found</h2>", status_code=404)
     if not job.pptx_path or not os.path.exists(job.pptx_path):
         return HTMLResponse("<h2>File not found</h2>", status_code=404)
+    company_name = job.company_data.company_name if job.company_data else job_id
     return FileResponse(
         job.pptx_path,
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        filename=f"{job.company_data.company_name.replace(' ', '_')}.pptx",
+        filename=f"{company_name.replace(' ', '_')}.pptx",
     )
 
 
