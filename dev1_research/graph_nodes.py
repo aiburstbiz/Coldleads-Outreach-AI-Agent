@@ -9,7 +9,10 @@ step that populates a validated company logo URL (Hunter.io, no API key).
 
 Two levels of critic:
     Level 1 (evaluate_analyze_node): "Is the output complete enough?"
-        - checks for missing pain points, industry, snapshot, contact, news
+        - split into BLOCKING checks (pain_points, industry, summary,
+          company_snapshot — Groq-controllable, retrying genuinely helps)
+          and NON-BLOCKING checks (contact info, news — gated by external
+          search rate-limiting, retrying just burns quota for nothing)
     Level 2 (fact_check_node): "Is the output actually correct?"
         - re-sends source content + extracted facts to Groq
         - asks it to verify each fact-bearing field against the source
@@ -234,7 +237,19 @@ def analyze_node(state: ResearchState) -> ResearchState:
 
 
 def evaluate_analyze_node(state: ResearchState) -> ResearchState:
-    """Level 1 critic: 'Is the output complete enough to use?'"""
+    """Level 1 critic: 'Is the output complete enough to use?'
+
+    Split into two categories, since they have different root causes and
+    different responses to retrying:
+      - BLOCKING (pain_points, industry, summary, company_snapshot): these
+        come from Groq's own reasoning on the content it was given.
+        Retrying genuinely helps, since Groq can do better on a second pass.
+      - NON-BLOCKING (contact info, news): these come from external search
+        results, and are missing mainly due to DuckDuckGo rate-limiting,
+        not Groq quality. Retrying doesn't fix a rate limit — it just
+        burns extra Groq calls for the same result. Still logged as a
+        warning so the gap is visible, but no longer forces a retry loop.
+    """
     notes = state.setdefault("quality_notes", [])
 
     if state.get("error"):
@@ -247,25 +262,32 @@ def evaluate_analyze_node(state: ResearchState) -> ResearchState:
     llm = cr.get("llm_analysis", {})
     contact = cr.get("contact", {})
 
-    issues = []
+    # BLOCKING — Groq reasoning gaps, retrying genuinely helps
+    blocking_issues = []
     if not llm.get("pain_points"):
-        issues.append("no pain points found")
+        blocking_issues.append("no pain points found")
     if (about.get("industry") or "Unknown") == "Unknown":
-        issues.append("industry unknown")
+        blocking_issues.append("industry unknown")
     if len(llm.get("summary", "")) < 40:
-        issues.append("summary too short")
+        blocking_issues.append("summary too short")
     if not cr.get("company_snapshot"):
-        issues.append("no company snapshot stats")
-    if not any([contact.get("email"), contact.get("phone"), contact.get("address")]):
-        issues.append("no contact info found (email/phone/address all missing)")
-    if not cr.get("news"):
-        issues.append("no news items found")
+        blocking_issues.append("no company snapshot stats")
 
-    if issues:
-        notes.append(f"analysis quality issues: {', '.join(issues)}")
+    # NON-BLOCKING — external search gaps, retrying just burns quota
+    warnings = []
+    if not any([contact.get("email"), contact.get("phone"), contact.get("address")]):
+        warnings.append("no contact info found (likely search rate-limiting, not a Groq issue)")
+    if not cr.get("news"):
+        warnings.append("no news items found (likely search rate-limiting, not a Groq issue)")
+
+    if warnings:
+        notes.append(f"non-blocking data gaps: {', '.join(warnings)}")
+
+    if blocking_issues:
+        notes.append(f"analysis quality issues: {', '.join(blocking_issues)}")
         state["current_step"] = "analyze_thin"
     else:
-        notes.append("analysis OK: rich result with pain points, industry, snapshot, contact, news")
+        notes.append("analysis OK (contact/news gaps, if any, are non-blocking)")
         state["current_step"] = "analyze_ok"
 
     return state
@@ -286,8 +308,6 @@ def route_after_analyze(state: ResearchState) -> str:
 
 # ---------------------------------------------------------------------------
 # STEP 4: Level-2 critic - fact verification against source content
-# (EXTENDED: now also verifies products, services, growth_signals,
-# tech_stack_hints — not just founded/size/contact/snapshot/news)
 # ---------------------------------------------------------------------------
 
 FACT_CHECK_PROMPT_TEMPLATE = """You are a fact-checking critic. You will be given SOURCE CONTENT (scraped
@@ -363,7 +383,13 @@ def fact_check_node(state: ResearchState) -> ResearchState:
     or spotlight_use_case — those are analytical/inferred content, not
     direct extractions, so "must appear in source" doesn't apply to them
     the same way (that would need a different kind of relevance check,
-    not a fact-check)."""
+    not a fact-check).
+
+    Note: runs identically regardless of whether the preceding analyze
+    step was accepted after 1 attempt or 3 (analyze_ok vs accept_anyway)
+    — it just verifies whatever ended up in company_research at this
+    point, with no dependency on retry count or which fields triggered
+    a retry."""
     notes = state.setdefault("fact_check_notes", [])
 
     cr = state.get("company_research")
@@ -409,7 +435,7 @@ def fact_check_node(state: ResearchState) -> ResearchState:
                 {"role": "user", "content": prompt},
             ],
             temperature=0.1,
-            max_tokens=1500,  # bumped up slightly - more fields to verify now
+            max_tokens=1500,
         )
 
         raw = response.choices[0].message.content.strip()
@@ -431,7 +457,6 @@ def fact_check_node(state: ResearchState) -> ResearchState:
     contact = cr.setdefault("contact", {})
     llm = cr.setdefault("llm_analysis", {})
 
-    # --- Scalar fields ---
     if facts["founded"] and verdicts.get("founded") != "verified":
         corrections.append(f"founded ('{facts['founded']}') -> unverified, nulled")
         about["founded"] = None
@@ -452,12 +477,11 @@ def fact_check_node(state: ResearchState) -> ResearchState:
         corrections.append(f"address ('{facts['address']}') -> unverified, nulled")
         contact["address"] = None
 
-    # --- List fields: helper to filter by verdict, only if lengths match ---
     def _filter_list(field_key: str, cr_list_getter, cr_list_setter, label_fn=str):
         verdict_list = verdicts.get(field_key, [])
         original_list = cr_list_getter()
         if not verdict_list or len(verdict_list) != len(original_list):
-            return  # skip if Groq didn't return matching-length verdicts
+            return
         kept = []
         for item, verdict in zip(original_list, verdict_list):
             if verdict == "verified":
