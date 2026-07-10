@@ -81,6 +81,19 @@ def route_after_ppt(state: PipelineState) -> str:
     return "continue"
 
 
+def route_after_email(state: PipelineState) -> str:
+    """
+    If email_node failed (e.g. a DB connection issue while updating the
+    job row, or any other exception caught internally), stop here instead
+    of continuing into approval with a missing/broken email_draft. Same
+    pattern as route_after_ppt — errors caught inside a node must actually
+    be used for routing, not just silently absorbed.
+    """
+    if state.get("error"):
+        return "fail"
+    return "continue"
+
+
 def route_after_approval(state: PipelineState) -> str:
     if state.get("approval_status") == "approved":
         return "send"
@@ -143,7 +156,10 @@ def build_pipeline(checkpointer=None) -> "CompiledStateGraph":
         "ppt", route_after_ppt,
         {"continue": "email", "fail": END},
     )
-    graph.add_edge("email", "approval")     # approval uses interrupt() inside
+    graph.add_conditional_edges(
+        "email", route_after_email,
+        {"continue": "approval", "fail": END},
+    )     # approval uses interrupt() inside
     graph.add_conditional_edges(
         "approval", route_after_approval,
         {"send": "send", "end": END},
