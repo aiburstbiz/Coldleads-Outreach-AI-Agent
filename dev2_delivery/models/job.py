@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
@@ -22,4 +22,16 @@ class Job(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     approved_at: Optional[datetime] = None
     from_pipeline: bool = False
+
+    @computed_field
+    @property
+    def company_name(self) -> str:
+        """
+        Convenience accessor so templates and other code can reference
+        job.company_name directly. Falls back to job_id for failed jobs
+        that never got real company_data (e.g. a ppt_node failure).
+        """
+        if self.company_data:
+            return self.company_data.company_name
+        return self.job_id
 
