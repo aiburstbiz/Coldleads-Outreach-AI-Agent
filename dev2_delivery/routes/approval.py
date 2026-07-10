@@ -115,10 +115,12 @@ async def reject(request: Request, job_id: str, db: Session = Depends(get_db)):
 
     job_store.update_job(db, job_id, status=JobStatus.rejected)
 
-    if job.from_pipeline:
-        from graph.workflow import resume_pipeline
-        resume_pipeline(thread_id=job_id, decision={"status": "rejected"})
-
+    # NOTE: unlike approve(), reject() does NOT call resume_pipeline() here.
+    # Resolving the LangGraph interrupt would finalize that thread (route to
+    # END), leaving nothing to resume if the user edits and re-approves
+    # afterward — resume_pipeline() on an already-finished thread silently
+    # fails (empty state, JOBSTATUS.failed with no real error). Leaving the
+    # interrupt unresolved keeps the door open for a genuine re-approve.
     flash = {"type": "error", "message": "Job rejected. You can edit and re-approve above."}
     return templates.TemplateResponse(request,
         "approval.html",
