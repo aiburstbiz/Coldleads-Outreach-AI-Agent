@@ -1,0 +1,151 @@
+{
+  "company_name": "dxfactor",
+  "website_url": "https://dxfactor.com/about-us/",
+  "scraped_at": "2026-07-14T07:26:51.762219Z",
+  "about": {
+    "summary": "DXFactor is an AI Engineering firm that builds, deploys, and measures production-ready AI systems inside real enterprise environments, specializing in the Information Technology and Services area, with annual revenue varying between $50M and $100M, serving the fitness and wellness industry. The company has partnered with several notable clients, including ABC Fitness and EGYM, to deliver outcomes-driven AI solutions. DXFactor's proprietary Outcomes Platform fuses client data with external datasets to drive digital transformation. The company is led by its founder and CEO, Dharmesh Trivedi.",
+    "industry": "Information Technology and Services",
+    "founded": "2018",
+    "size": "50-249"
+  },
+  "products": [
+    {
+      "name": "Outcomes Micro Agents Platform (OMAP)",
+      "description": "A platform that delivers outcomes-driven AI solutions to the fitness and wellness industry, using generative AI to elevate member experience"
+    },
+    {
+      "name": "FitGenAI",
+      "description": "A product that uses generative AI to deliver personalized fitness and wellness solutions"
+    }
+  ],
+  "services": [
+    {
+      "name": "Digital Transformation Services",
+      "description": "Services that help clients transform their businesses using AI and digital technologies"
+    },
+    {
+      "name": "AI Engineering Services",
+      "description": "Services that build, deploy, and measure production-ready AI systems inside real enterprise environments"
+    }
+  ],
+  "contact": {
+    "email": null,
+    "phone": null,
+    "address": "Fairfax, United States",
+    "social_links": [
+      "https://www.linkedin.com/company/dxfactor"
+    ]
+  },
+  "news": [
+    {
+      "title": "DXFactor Launches FitGenAI: Elevating Member Experience Using Generative AI",
+      "date": "2026",
+      "summary": "DXFactor has launched FitGenAI, a product that uses generative AI to deliver personalized fitness and wellness solutions. This launch is part of the company's efforts to expand its offerings in the fitness and wellness industry."
+    },
+    {
+      "title": "DXFactor and Daxko Partner to Deliver Outcomes Driven by AI",
+      "date": "2025",
+      "summary": "DXFactor has partnered with Daxko to deliver outcomes-driven AI solutions to the fitness and wellness industry. This partnership will enable the companies to offer more comprehensive and personalized solutions to their clients."
+    },
+    {
+      "title": "DXFactor and EGYM Partner to Innovate Fitness with AI Solutions",
+      "date": null,
+      "summary": "DXFactor has partnered with EGYM to innovate fitness with AI solutions. This partnership will enable the companies to offer more effective and personalized fitness solutions to their clients."
+    },
+    {
+      "title": "ABC Fitness and DXFactor Partner Around Generative AI",
+      "date": null,
+      "summary": "ABC Fitness has partnered with DXFactor to deliver generative AI solutions to the fitness industry. This partnership will enable the companies to offer more comprehensive and personalized solutions to their clients."
+    },
+    {
+      "title": "DXFactor Welcomes Hardik Upadhyay and Keyuri Budhbhatti",
+      "date": "2026",
+      "summary": "DXFactor has welcomed two new team members, Hardik Upadhyay and Keyuri Budhbhatti, as part of its efforts to expand its team and offerings."
+    }
+  ],
+  "llm_analysis": {
+    "pain_points": [
+      "The fitness and wellness industry is facing increasing competition and declining member retention rates, making it challenging for businesses to deliver personalized and effective solutions to their clients.",
+      "Many fitness and wellness businesses lack the technical expertise and resources to effectively leverage AI and digital technologies to drive their operations and decision-making.",
+      "The industry is also facing increasing pressure to deliver more comprehensive and integrated solutions that address the holistic needs of their clients, including physical, mental, and emotional well-being.",
+      "DXFactor's clients may be experiencing challenges in integrating AI solutions into their existing infrastructure and workflows, requiring significant investments in time, money, and resources.",
+      "The company's clients may also be facing challenges in measuring the effectiveness and ROI of their AI solutions, requiring more sophisticated analytics and evaluation frameworks."
+    ],
+    "growth_signals": [
+      "Partnerships with notable clients such as ABC Fitness and EGYM",
+      "Expansion of product offerings, including the launch of FitGenAI",
+      "Increase in employee count and expansion of team",
+      "Growing revenue and annual revenue range of $50M-$100M"
+    ],
+    "tech_stack_hints": [
+      "AI and machine learning technologies",
+      "Generative AI",
+      "Digital transformation platforms",
+      "Outcomes-driven AI solutions"
+    ],
+    "summary": "DXFactor is an AI Engineering firm that is well-positioned to capitalize on the growing demand for AI and digital technologies in the fitness and wellness industry. The company has established partnerships with notable clients and has expanded its product offerings to include generative AI solutions. However, the company may face challenges in integrating its solutions into existing infrastructure and workflows, and in measuring the effectiveness and ROI of its solutions. Overall, DXFactor has a strong foundation for growth and expansion, with a talented team and a robust tech stack."
+  },
+  "recommended_services": [
+    {
+      "service": "AI Solution Integration",
+      "reason": "DXFactor's clients may require assistance in integrating AI solutions into their existing infrastructure and workflows, which could involve significant investments in time, money, and resources. By offering AI solution integration services, DXFactor could help its clients to more effectively leverage AI and digital technologies to drive their operations and decision-making.",
+      "priority": "high"
+    },
+    {
+      "service": "Digital Transformation Strategy",
+      "reason": "DXFactor's clients may require guidance on how to develop a comprehensive digital transformation strategy that addresses their unique needs and goals. By offering digital transformation strategy services, DXFactor could help its clients to more effectively leverage AI and digital technologies to drive their operations and decision-making.",
+      "priority": "medium"
+    },
+    {
+      "service": "AI Solution Evaluation and ROI Analysis",
+      "reason": "DXFactor's clients may require assistance in evaluating the effectiveness and ROI of their AI solutions, which could involve developing more sophisticated analytics and evaluation frameworks. By offering AI solution evaluation and ROI analysis services, DXFactor could help its clients to more effectively measure the impact of their AI solutions and make data-driven decisions.",
+      "priority": "medium"
+    }
+  ],
+  "logo_url": "https://logos.hunter.io/dxfactor.com",
+  "company_snapshot": [
+    {
+      "label": "$50M-$100M",
+      "caption": "Annual revenue range"
+    },
+    {
+      "label": "50-249",
+      "caption": "Employee count range"
+    },
+    {
+      "label": "133 Employees",
+      "caption": "Total number of employees"
+    },
+    {
+      "label": "Fairfax, United States",
+      "caption": "Headquarters location"
+    }
+  ],
+  "spotlight_use_case": {
+    "title": "AI-Powered Fitness and Wellness Solutions",
+    "stages": [
+      {
+        "stage": "Ingest",
+        "description": "DXFactor's AI-powered fitness and wellness solutions begin with the ingestion of client data, including fitness goals, workout habits, and nutritional information."
+      },
+      {
+        "stage": "Predict",
+        "description": "The ingested data is then used to predict the client's fitness and wellness outcomes, including the likelihood of achieving their goals and the potential risks of injury or burnout."
+      },
+      {
+        "stage": "Act",
+        "description": "Based on the predicted outcomes, DXFactor's AI-powered solutions provide personalized recommendations for workouts, nutrition, and recovery, which are tailored to the client's unique needs and goals."
+      },
+      {
+        "stage": "Report",
+        "description": "The effectiveness of the AI-powered solutions is then evaluated and reported, providing insights into the client's progress and identifying areas for improvement."
+      }
+    ],
+    "estimated_outcomes": [
+      "Improved client engagement and retention",
+      "Increased revenue through personalized fitness and wellness solutions",
+      "Enhanced client outcomes, including improved fitness and wellness metrics",
+      "Reduced risk of injury or burnout through personalized recommendations"
+    ]
+  }
+}

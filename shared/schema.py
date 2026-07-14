@@ -72,14 +72,22 @@ class SpotlightUseCase(BaseModel):
     estimated_outcomes: List[str] = Field(default_factory=list)
 
 
+class ProductOrService(BaseModel):
+    """One product or service, with a short description of what it actually
+    does — not just a bare name, so the deck/email can explain it rather
+    than just list it."""
+    name: str
+    description: str
+
+
 class CompanyResearch(BaseModel):
     """The single object Dev1 produces and Dev2 consumes."""
     company_name: str
     website_url: str
     scraped_at: datetime
     about: About
-    products: List[str] = Field(default_factory=list)
-    services: List[str] = Field(default_factory=list)
+    products: List[ProductOrService] = Field(default_factory=list)
+    services: List[ProductOrService] = Field(default_factory=list)
     contact: Contact
     news: List[NewsItem] = Field(default_factory=list)
     llm_analysis: LLMAnalysis
@@ -104,8 +112,14 @@ class CompanyResearch(BaseModel):
                     "founded": "1998",
                     "size": "201-500 employees",
                 },
-                "products": ["Widget Pro", "Widget Lite"],
-                "services": ["Custom manufacturing", "Logistics"],
+                "products": [
+                    {"name": "Widget Pro", "description": "Enterprise-grade widget line with configurable automation for high-volume manufacturers."},
+                    {"name": "Widget Lite", "description": "Entry-level widget aimed at small and mid-sized manufacturers."},
+                ],
+                "services": [
+                    {"name": "Custom manufacturing", "description": "Bespoke widget production tailored to client specifications and volume needs."},
+                    {"name": "Logistics", "description": "End-to-end shipping and fulfillment for widget orders across North America."},
+                ],
                 "contact": {
                     "email": "info@acme.com",
                     "phone": "+1-555-0100",

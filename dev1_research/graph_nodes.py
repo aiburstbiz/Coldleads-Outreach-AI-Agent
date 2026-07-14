@@ -29,6 +29,11 @@ the source, since they are explicitly reasoned conclusions, not direct
 extractions - flagging them as "not in source" would be a false positive
 by design.
 
+Note: products/services are now {name, description} objects (not bare
+strings) — the fact-check verification below checks the "name: description"
+text against the source, and if unverified, drops the WHOLE {name,
+description} object (not just the name), same as before.
+
 Flow:
     search -> evaluate_search -> [retry search | continue | fail]
     scrape -> evaluate_scrape -> [retry scrape | continue | fail]
@@ -375,7 +380,11 @@ one verdict per item."""
 def _build_facts_to_verify(cr: dict) -> dict:
     """Pull out just the fact-bearing fields worth verifying — not the
     analytical/inferred fields like pain_points or recommended_services,
-    which are reasoned conclusions rather than direct extractions."""
+    which are reasoned conclusions rather than direct extractions.
+
+    products/services are now {name, description} objects — verified as
+    "name: description" text so the fact-checker checks both parts, not
+    just the bare name."""
     about = cr.get("about", {})
     contact = cr.get("contact", {})
     llm = cr.get("llm_analysis", {})
@@ -390,8 +399,14 @@ def _build_facts_to_verify(cr: dict) -> dict:
             for s in cr.get("company_snapshot", [])
         ],
         "news_items": [n.get("title", "") for n in cr.get("news", [])],
-        "products": cr.get("products", []),
-        "services": cr.get("services", []),
+        "products": [
+            f"{p.get('name', '')}: {p.get('description', '')}"
+            for p in cr.get("products", [])
+        ],
+        "services": [
+            f"{s.get('name', '')}: {s.get('description', '')}"
+            for s in cr.get("services", [])
+        ],
         "growth_signals": llm.get("growth_signals", []),
         "tech_stack_hints": llm.get("tech_stack_hints", []),
     }
@@ -535,11 +550,13 @@ def fact_check_node(state: ResearchState) -> ResearchState:
         "products",
         lambda: cr.get("products", []),
         lambda kept: cr.__setitem__("products", kept),
+        label_fn=lambda p: p.get("name", ""),
     )
     _filter_list(
         "services",
         lambda: cr.get("services", []),
         lambda kept: cr.__setitem__("services", kept),
+        label_fn=lambda s: s.get("name", ""),
     )
     _filter_list(
         "growth_signals",

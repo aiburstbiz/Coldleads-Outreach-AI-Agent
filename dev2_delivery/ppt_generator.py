@@ -21,6 +21,9 @@ Notes:
     the slide is left without a logo rather than erroring out.
   - Day 8's snapshot/spotlight slides are NOT used with this template (dropped
     per Day 11 decision) — this template has no corresponding slide for them.
+  - products/services are now name+description objects (ProductOrService),
+    not bare strings — formatted as "name: description" so the deck explains
+    what each one actually does instead of just listing names.
 """
 import io
 import os
@@ -66,6 +69,21 @@ def _format_list(items: list, prefix="• ") -> str:
     if not items:
         return "None found"
     return "\n".join(f"{prefix}{item}" for item in items)
+
+
+def _format_products_services(items: list) -> str:
+    """Formats ProductOrService items as 'name: description' bullets, so
+    the deck explains what each product/service actually does instead of
+    just listing bare names."""
+    if not items:
+        return "None found"
+    lines = []
+    for item in items:
+        if item.description:
+            lines.append(f"• {item.name}: {item.description}")
+        else:
+            lines.append(f"• {item.name}")
+    return "\n".join(lines)
 
 
 def _format_news(news_items: list) -> str:
@@ -169,8 +187,8 @@ def generate_pptx(data: CompanyResearch) -> str:
         "{{industry}}": data.about.industry if data.about else "N/A",
         "{{founded}}": data.about.founded or "N/A",
         "{{size}}": data.about.size or "N/A",
-        "{{products}}": _format_list(data.products),
-        "{{services}}": _format_list(data.services),
+        "{{products}}": _format_products_services(data.products),
+        "{{services}}": _format_products_services(data.services),
         "{{news}}": _format_news(data.news),
         "{{pain_points}}": _format_list(data.llm_analysis.pain_points),
         "{{growth_signals}}": _format_list(data.llm_analysis.growth_signals),

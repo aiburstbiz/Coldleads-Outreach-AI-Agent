@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from shared.schema import (
     About, CompanyResearch, Contact, LLMAnalysis,
-    NewsItem, Priority, RecommendedService,
+    NewsItem, Priority, ProductOrService, RecommendedService,
     SnapshotStat, SpotlightStage, SpotlightUseCase,
 )
 from dev1_research.scraper import ScrapedSite
@@ -86,8 +86,12 @@ Return a JSON object with EXACTLY this structure (no extra fields, no markdown):
   "company_snapshot": [
     {{"label": "short bold stat, e.g. '19+ Years' or '200,000+'", "caption": "5-10 word caption explaining the stat"}}
   ],
-  "products": ["list of product/brand names, empty array if none"],
-  "services": ["list of service names"],
+  "products": [
+    {{"name": "product/brand name", "description": "1 full sentence explaining what this product actually does and who it's for — not just a name"}}
+  ],
+  "services": [
+    {{"name": "service name", "description": "1 full sentence explaining what this service actually does for the client — not just a name"}}
+  ],
   "contact": {{
     "email": "email address or null",
     "phone": "phone number or null",
@@ -135,6 +139,10 @@ Rules:
   business directory listing, or financial profile snippet rather than the company's own homepage
 - company_snapshot: include 4-6 concrete, quotable facts if the source supports them. If genuinely not
   found, return an empty array rather than inventing numbers.
+- products / services: EVERY item must have both a "name" AND a "description" — never return a bare
+  string, and never leave "description" empty. If the source content doesn't say what a product/service
+  actually does, write the most reasonable one-sentence description you can infer from context (e.g. from
+  the product name, the industry, or surrounding text) rather than omitting the description.
 - pain_points: 3-5 items, each a REAL explanatory sentence or two — not a keyword phrase.
 - recommended_services: 3-5 items, each "reason" a full descriptive sentence or two, specific to this
   company's actual operations.
@@ -160,6 +168,24 @@ def _to_str_or_none(value) -> str | None:
                          "not stated", "unknown", ""):
         return None
     return text
+
+
+def _parse_product_or_service_list(items: list) -> list[ProductOrService]:
+    """Parses products/services into ProductOrService(name, description)
+    objects. Handles Groq occasionally returning a bare string instead of
+    the requested {name, description} object — in that case the string
+    becomes the name and description is left blank rather than the whole
+    item being dropped."""
+    parsed = []
+    for item in items:
+        if isinstance(item, dict):
+            parsed.append(ProductOrService(
+                name=str(item.get("name", "")),
+                description=str(item.get("description", "")),
+            ))
+        else:
+            parsed.append(ProductOrService(name=str(item), description=""))
+    return parsed
 
 
 def _parse_response(company_name: str, website_url: str, raw: str) -> CompanyResearch:
@@ -238,8 +264,8 @@ def _parse_response(company_name: str, website_url: str, raw: str) -> CompanyRes
         scraped_at=datetime.now(timezone.utc),
         about=about,
         company_snapshot=company_snapshot,
-        products=[str(p) for p in data.get("products", [])],
-        services=[str(s) for s in data.get("services", [])],
+        products=_parse_product_or_service_list(data.get("products", [])),
+        services=_parse_product_or_service_list(data.get("services", [])),
         contact=contact,
         news=news,
         llm_analysis=llm_analysis,
