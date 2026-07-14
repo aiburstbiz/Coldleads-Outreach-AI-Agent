@@ -250,12 +250,44 @@ def _parse_response(company_name: str, website_url: str, raw: str) -> CompanyRes
 
 def _build_source_text(company_name: str, scraped_site: ScrapedSite) -> str:
     """Build the source text sent to Groq for analysis (site content +
-    external context, trimmed to the 14000-char limit). Extracted as its
-    own function so callers (like graph_nodes.py's fact_check_node) can
-    build this ONCE and pass it into analyze_company(), avoiding a
-    duplicate external search call if they also need the raw source text
-    for verification purposes."""
-    scraped_text = scraped_site.all_text()
+    external context, trimmed to the 14000-char limit).
+
+    Pages are reordered before concatenation so the highest-value pages
+    (contact, about, home) always appear FIRST in the text — this means
+    if the total content exceeds the 14000-char limit and something has
+    to be cut, it's the lower-priority pages (blog posts, terms of use,
+    generic "other" pages) that get trimmed, not the contact page where
+    email/phone/address actually live. Without this, page order was
+    whatever the crawler happened to visit first, and a contact page
+    visited last (common, since it's often a footer link) could get cut
+    entirely on content-heavy sites.
+
+    Extracted as its own function so callers (like graph_nodes.py's
+    fact_check_node) can build this ONCE and pass it into
+    analyze_company(), avoiding a duplicate external search call if they
+    also need the raw source text for verification purposes.
+    """
+    # Priority order: contact/about/home pages first (most likely to
+    # contain email, phone, address, founding info), then everything
+    # else in whatever order the crawler found it.
+    PRIORITY_PAGE_TYPES = ["contact", "about", "home"]
+
+    def _page_priority(page) -> int:
+        try:
+            return PRIORITY_PAGE_TYPES.index(page.page_type)
+        except ValueError:
+            return len(PRIORITY_PAGE_TYPES)  # everything else sorts after
+
+    ordered_pages = sorted(
+        [p for p in scraped_site.pages if p.success and p.text],
+        key=_page_priority,
+    )
+
+    parts = [
+        f"=== {p.page_type.upper()} PAGE ({p.url}) ===\n{p.text}"
+        for p in ordered_pages
+    ]
+    scraped_text = "\n\n".join(parts)
 
     own_domain = urlparse(scraped_site.base_url).netloc.lower()
     if own_domain.startswith("www."):
