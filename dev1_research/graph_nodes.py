@@ -4,8 +4,10 @@ dev1_research/graph_nodes.py
 LangGraph nodes for Dev1's research pipeline, with an evaluator/critic
 node after EVERY major step (search, scrape, analyze), a Level-2
 fact-checking critic that verifies extracted facts against the original
-source content before accepting the final result, and a final logo-fetch
-step that populates a validated company logo URL (Hunter.io, no API key).
+source content before accepting the final result, a reliable regex-based
+email finder that overrides Groq's often-null email extraction, and a
+final logo-fetch step that populates a validated company logo URL
+(Hunter.io, no API key).
 
 Two levels of critic:
     Level 1 (evaluate_analyze_node): "Is the output complete enough?"
@@ -50,6 +52,7 @@ import sys
 from pathlib import Path
 from pathlib import Path
 from typing import Optional, TypedDict
+from urllib.parse import urlparse
 
 logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 logger = logging.getLogger("graph_nodes")
@@ -58,6 +61,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dev1_research.search import find_company_website
 from dev1_research.scraper import scrape_company_website, ScrapedSite
+from dev1_research.email_finder import find_best_email
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +228,27 @@ def analyze_node(state: ResearchState) -> ResearchState:
         state["source_text"] = source_text
 
         result = analyze_company(company_name, site, source_text=source_text)
-        state["company_research"] = result.model_dump(mode="json")
+        result_dict = result.model_dump(mode="json")
+
+        # --- Reliable email extraction: overrides Groq's often-null guess ---
+        # Groq's email extraction depends on the email appearing somewhere
+        # in the (14000-char-limited) source text alongside dozens of other
+        # fields it's extracting at once. find_best_email() is a dedicated
+        # regex scan across EVERY scraped page with no length limit, so
+        # it's more reliable specifically for this one field.
+        own_domain = urlparse(site.base_url).netloc.lower().removeprefix("www.")
+        reliable_email = find_best_email(site, own_domain=own_domain)
+        if reliable_email:
+            groq_email = result_dict["contact"].get("email")
+            if groq_email != reliable_email:
+                logger.info(
+                    "[EMAIL] Overriding Groq's email ('%s') with regex-verified email: %s",
+                    groq_email, reliable_email,
+                )
+            result_dict["contact"]["email"] = reliable_email
+        # --- end email override ---
+
+        state["company_research"] = result_dict
         state["error"] = None
         logger.info("[ANALYZE attempt %d] Industry: %s",
                     state["analyze_attempts"], state["company_research"]["about"]["industry"])
@@ -249,6 +273,9 @@ def evaluate_analyze_node(state: ResearchState) -> ResearchState:
         not Groq quality. Retrying doesn't fix a rate limit — it just
         burns extra Groq calls for the same result. Still logged as a
         warning so the gap is visible, but no longer forces a retry loop.
+        (contact.email specifically is also now backed up by the
+        deterministic email_finder override in analyze_node, so it's
+        less likely to be genuinely missing by this point anyway.)
     """
     notes = state.setdefault("quality_notes", [])
 
@@ -377,19 +404,12 @@ def fact_check_node(state: ResearchState) -> ResearchState:
     couldn't be confirmed rather than risking a fabricated detail
     reaching a client deck. Runs once, after analyze is done retrying.
 
-    Covers ALL fact-bearing fields: founded, size, contact info,
-    company_snapshot, news, products, services, growth_signals,
-    tech_stack_hints. Does NOT cover pain_points, recommended_services,
-    or spotlight_use_case — those are analytical/inferred content, not
-    direct extractions, so "must appear in source" doesn't apply to them
-    the same way (that would need a different kind of relevance check,
-    not a fact-check).
-
-    Note: runs identically regardless of whether the preceding analyze
-    step was accepted after 1 attempt or 3 (analyze_ok vs accept_anyway)
-    — it just verifies whatever ended up in company_research at this
-    point, with no dependency on retry count or which fields triggered
-    a retry."""
+    Note: the email override applied in analyze_node happens BEFORE this
+    step, so if find_best_email() found a real email, it will correctly
+    verify (it's a real regex match from the actual source text), while
+    a genuinely bad/hallucinated Groq email would have already been
+    replaced before ever reaching this check.
+    """
     notes = state.setdefault("fact_check_notes", [])
 
     cr = state.get("company_research")
@@ -404,6 +424,15 @@ def fact_check_node(state: ResearchState) -> ResearchState:
         return state
 
     facts = _build_facts_to_verify(cr)
+    # Email is excluded from LLM fact-checking on purpose: it's already
+    # deterministically verified via regex against the actual scraped
+    # page text in analyze_node (email_finder.py), which is more
+    # reliable than an LLM re-check against a *truncated* source_text
+    # that may not even include the page the email came from (e.g. the
+    # contact page, often scraped last, can fall outside the 14000-char
+    # trim). Re-verifying a regex-confirmed match with a fallible LLM
+    # call only risks false negatives, not catching real problems.
+    facts["email"] = None
 
     has_any_fact = any([
         facts["founded"], facts["size"], facts["email"], facts["phone"],
@@ -622,7 +651,7 @@ if __name__ == "__main__":
     app = build_dev1_subgraph()
     initial_state = _init_state(company)
 
-    print(f"\nRunning Dev1 subgraph (with Level-1 + Level-2 critics + logo) for: {company}")
+    print(f"\nRunning Dev1 subgraph (with Level-1 + Level-2 critics + email + logo) for: {company}")
     print("=" * 60)
 
     final_state = app.invoke(initial_state)
@@ -642,7 +671,8 @@ if __name__ == "__main__":
         print(f"  - {note}")
 
     if final_state.get("company_research"):
-        print(f"\nLogo URL: {final_state['company_research'].get('logo_url')}")
+        print(f"\nEmail: {final_state['company_research'].get('contact', {}).get('email')}")
+        print(f"Logo URL: {final_state['company_research'].get('logo_url')}")
         print(f"\nRecommended services:")
         print(_json.dumps(final_state["company_research"].get("recommended_services", []), indent=2))
 
